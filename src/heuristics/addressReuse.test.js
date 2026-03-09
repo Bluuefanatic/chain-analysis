@@ -13,7 +13,7 @@ import { addressReuse } from './addressReuse.js';
 
 // ── Script fixtures ────────────────────────────────────────────────────────────
 
-const NULL_TXID  = '0'.repeat(64);
+const NULL_TXID = '0'.repeat(64);
 const DUMMY_TXID = 'ab'.repeat(32);
 
 const SPK_A = '0014' + 'aa'.repeat(20); // P2WPKH address A
