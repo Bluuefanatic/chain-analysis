@@ -27,7 +27,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { tmpdir } from 'node:os';
-import { join }    from 'node:path';
+import { join } from 'node:path';
 import { writeFileSync, unlinkSync } from 'node:fs';
 
 import {
@@ -377,8 +377,8 @@ describe('decompressScript', () => {
 
     it('correctly advances offset for back-to-back compressed scripts', () => {
         const p2pkh = makeP2pkhScript('aa'.repeat(20));
-        const p2sh  = makeP2shScript('bb'.repeat(20));
-        const buf   = Buffer.concat([p2pkh, p2sh]);
+        const p2sh = makeP2shScript('bb'.repeat(20));
+        const buf = Buffer.concat([p2pkh, p2sh]);
         const { scriptPubKey: s1, size: sz1 } = decompressScript(buf, 0);
         const { scriptPubKey: s2, size: sz2 } = decompressScript(buf, sz1);
         assert.ok(s1.startsWith('76a914'));
@@ -394,13 +394,13 @@ describe('decompressScript', () => {
 
 describe('parseRevFile — single block, single P2PKH prevout', () => {
     const HASH160 = 'ab'.repeat(20);
-    const VALUE   = 100_000_000; // 1 BTC
+    const VALUE = 100_000_000; // 1 BTC
 
     const coinBuf = makeCoin({
-        height:     700_000,
+        height: 700_000,
         is_coinbase: false,
         value_sats: VALUE,
-        scriptBuf:  makeP2pkhScript(HASH160),
+        scriptBuf: makeP2pkhScript(HASH160),
     });
 
     // One non-coinbase tx with one input
@@ -461,10 +461,10 @@ describe('parseRevFile — single block, single P2PKH prevout', () => {
 describe('parseRevFile — is_coinbase flag on the coin', () => {
     it('is_coinbase is true when the coin code encodes is_coinbase=1', () => {
         const coinBuf = makeCoin({
-            height:     100,
+            height: 100,
             is_coinbase: true, // spending a coinbase output
             value_sats: 5_000_000_000,
-            scriptBuf:  makeP2pkhScript('ff'.repeat(20)),
+            scriptBuf: makeP2pkhScript('ff'.repeat(20)),
         });
         const p = writeTmp(makeRevFile([[[coinBuf]]]));
         try {
@@ -483,15 +483,15 @@ describe('parseRevFile — is_coinbase flag on the coin', () => {
 
 describe('parseRevFile — P2WPKH prevout', () => {
     const KEY_HASH = 'aa'.repeat(20);
-    const VALUE    = 99_000_000;
+    const VALUE = 99_000_000;
 
     it('parses P2WPKH coin and reconstructs the raw script', () => {
         const scriptHex = `0014${KEY_HASH}`;
         const coinBuf = makeCoin({
-            height:     800_000,
+            height: 800_000,
             is_coinbase: false,
             value_sats: VALUE,
-            scriptBuf:  makeRawScript(scriptHex),
+            scriptBuf: makeRawScript(scriptHex),
         });
         const p = writeTmp(makeRevFile([[[coinBuf]]]));
         try {
@@ -511,13 +511,13 @@ describe('parseRevFile — P2WPKH prevout', () => {
 
 describe('parseRevFile — P2TR prevout', () => {
     it('parses P2TR coin and reconstructs the raw script', () => {
-        const key     = 'ef'.repeat(32);
+        const key = 'ef'.repeat(32);
         const scriptHex = `5120${key}`;
         const coinBuf = makeCoin({
-            height:     830_000,
+            height: 830_000,
             is_coinbase: false,
             value_sats: 50_000,
-            scriptBuf:  makeRawScript(scriptHex),
+            scriptBuf: makeRawScript(scriptHex),
         });
         const p = writeTmp(makeRevFile([[[coinBuf]]]));
         try {
@@ -537,8 +537,8 @@ describe('parseRevFile — P2TR prevout', () => {
 describe('parseRevFile — transaction with 3 inputs (3 coins)', () => {
     const coins = [
         makeCoin({ height: 600_000, value_sats: 200_000_000, scriptBuf: makeP2pkhScript('aa'.repeat(20)) }),
-        makeCoin({ height: 650_000, value_sats: 150_000_000, scriptBuf: makeP2shScript ('bb'.repeat(20)) }),
-        makeCoin({ height: 700_000, value_sats:  50_000_000, scriptBuf: makeRawScript(`0014${'cc'.repeat(20)}`) }),
+        makeCoin({ height: 650_000, value_sats: 150_000_000, scriptBuf: makeP2shScript('bb'.repeat(20)) }),
+        makeCoin({ height: 700_000, value_sats: 50_000_000, scriptBuf: makeRawScript(`0014${'cc'.repeat(20)}`) }),
     ];
     let parsed;
 
@@ -710,7 +710,7 @@ describe('resolvePrevouts — basic mapping', () => {
 
     const txUndoCoins = [
         { value_sats: 100_000_000, script_pubkey: '76a914' + 'aa'.repeat(20) + '88ac', height: 700_000, is_coinbase: false },
-        { value_sats:  50_000_000, script_pubkey: '76a914' + 'bb'.repeat(20) + '88ac', height: 700_001, is_coinbase: false },
+        { value_sats: 50_000_000, script_pubkey: '76a914' + 'bb'.repeat(20) + '88ac', height: 700_001, is_coinbase: false },
     ];
 
     it('returns an array of length 2', () => {
@@ -731,9 +731,9 @@ describe('resolvePrevouts — basic mapping', () => {
 
     it('each prevout has only value_sats and script_pubkey (no height/is_coinbase)', () => {
         for (const p of resolvePrevouts(tx, txUndoCoins)) {
-            assert.ok('value_sats'    in p, 'missing value_sats');
+            assert.ok('value_sats' in p, 'missing value_sats');
             assert.ok('script_pubkey' in p, 'missing script_pubkey');
-            assert.strictEqual('height'      in p, false, 'height should not be in prevout');
+            assert.strictEqual('height' in p, false, 'height should not be in prevout');
             assert.strictEqual('is_coinbase' in p, false, 'is_coinbase should not be in prevout');
         }
     });
@@ -761,12 +761,12 @@ describe('resolvePrevouts — fee computation via parseRevFile round-trip', () =
             unlinkSync(p);
         }
 
-        const totalIn  = prevouts.reduce((s, p) => s + p.value_sats, 0);
+        const totalIn = prevouts.reduce((s, p) => s + p.value_sats, 0);
         const totalOut = 295_000_000; // 2.95 BTC in outputs (synthetic)
-        const fee      = totalIn - totalOut;
+        const fee = totalIn - totalOut;
 
-        assert.strictEqual(totalIn,  300_000_000); // 3 BTC in
-        assert.strictEqual(fee,        5_000_000); // 0.05 BTC fee
+        assert.strictEqual(totalIn, 300_000_000); // 3 BTC in
+        assert.strictEqual(fee, 5_000_000); // 0.05 BTC fee
     });
 });
 
