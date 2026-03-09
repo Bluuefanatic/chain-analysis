@@ -35,11 +35,11 @@
 
 // ── Byte-length constants (each byte = 2 hex chars) ──────────────────────────
 
-const HEX_P2PKH_LEN  = 25 * 2; // 76 a9 14 <20B> 88 ac
-const HEX_P2SH_LEN   = 23 * 2; // a9 14 <20B> 87
+const HEX_P2PKH_LEN = 25 * 2; // 76 a9 14 <20B> 88 ac
+const HEX_P2SH_LEN = 23 * 2; // a9 14 <20B> 87
 const HEX_P2WPKH_LEN = 22 * 2; // 00 14 <20B>
-const HEX_P2WSH_LEN  = 34 * 2; // 00 20 <32B>
-const HEX_P2TR_LEN   = 34 * 2; // 51 20 <32B>
+const HEX_P2WSH_LEN = 34 * 2; // 00 20 <32B>
+const HEX_P2TR_LEN = 34 * 2; // 51 20 <32B>
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
