@@ -19,8 +19,8 @@ import {
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
-const NULL_TXID   = '0'.repeat(64);
-const DUMMY_TXID  = 'ab'.repeat(32);
+const NULL_TXID = '0'.repeat(64);
+const DUMMY_TXID = 'ab'.repeat(32);
 const DUMMY_SCRIPT = '76a914' + 'aa'.repeat(20) + '88ac';
 
 /** A standard two-input, two-output legacy transaction. */
@@ -33,7 +33,7 @@ const TX_MULTI_INPUT = {
     ],
     vout: [
         { value_sats: 1_000_000, scriptPubKey: DUMMY_SCRIPT }, // round
-        { value_sats:   123_456, scriptPubKey: DUMMY_SCRIPT }, // non-round → change
+        { value_sats: 123_456, scriptPubKey: DUMMY_SCRIPT }, // non-round → change
     ],
     locktime: 0, size: 300, segwit: false,
 };
@@ -45,7 +45,7 @@ const TX_SINGLE_INPUT = {
     vin: [{ prev_txid: DUMMY_TXID, vout: 0, scriptSig: 'dead', sequence: 0xffffffff }],
     vout: [
         { value_sats: 500_000, scriptPubKey: DUMMY_SCRIPT }, // round
-        { value_sats:  78_901, scriptPubKey: DUMMY_SCRIPT }, // non-round → change
+        { value_sats: 78_901, scriptPubKey: DUMMY_SCRIPT }, // non-round → change
     ],
     locktime: 0, size: 200, segwit: false,
 };
@@ -100,7 +100,7 @@ describe('HeuristicEngine — registration', () => {
     it('register() replaces a heuristic with the same id', () => {
         const engine = new HeuristicEngine();
         engine.register({ id: 'alpha', analyze: () => ({ detected: false, v: 1 }) });
-        engine.register({ id: 'alpha', analyze: () => ({ detected: true,  v: 2 }) });
+        engine.register({ id: 'alpha', analyze: () => ({ detected: true, v: 2 }) });
         assert.strictEqual(engine.heuristicIds.length, 1);
         const report = engine.analyzeTransaction({});
         assert.strictEqual(report.alpha.v, 2);
@@ -200,7 +200,7 @@ describe('HeuristicEngine — pipeline execution', () => {
     it('a throwing heuristic does not abort subsequent heuristics', () => {
         const engine = new HeuristicEngine();
         engine.register({ id: 'boom', analyze: () => { throw new Error('oops'); } });
-        engine.register({ id: 'ok',   analyze: () => ({ detected: true }) });
+        engine.register({ id: 'ok', analyze: () => ({ detected: true }) });
         const report = engine.analyzeTransaction(TX_SINGLE_INPUT);
         assert.strictEqual(report.ok.detected, true);
     });
@@ -208,9 +208,9 @@ describe('HeuristicEngine — pipeline execution', () => {
     it('heuristics run in registration order', () => {
         const engine = new HeuristicEngine();
         const order = [];
-        engine.register({ id: 'first',  analyze: () => { order.push('first');  return {}; } });
+        engine.register({ id: 'first', analyze: () => { order.push('first'); return {}; } });
         engine.register({ id: 'second', analyze: () => { order.push('second'); return {}; } });
-        engine.register({ id: 'third',  analyze: () => { order.push('third');  return {}; } });
+        engine.register({ id: 'third', analyze: () => { order.push('third'); return {}; } });
         engine.analyzeTransaction({});
         assert.deepStrictEqual(order, ['first', 'second', 'third']);
     });
@@ -221,13 +221,13 @@ describe('HeuristicEngine — pipeline execution', () => {
 describe('ciohHeuristic', () => {
     it('detects multi-input transaction', () => {
         const r = ciohHeuristic.analyze(TX_MULTI_INPUT);
-        assert.strictEqual(r.detected,    true);
+        assert.strictEqual(r.detected, true);
         assert.strictEqual(r.input_count, 2);
     });
 
     it('does not detect single-input transaction', () => {
         const r = ciohHeuristic.analyze(TX_SINGLE_INPUT);
-        assert.strictEqual(r.detected,    false);
+        assert.strictEqual(r.detected, false);
         assert.strictEqual(r.input_count, 1);
     });
 
@@ -246,7 +246,7 @@ describe('ciohHeuristic', () => {
             vout: [],
         };
         const r = ciohHeuristic.analyze(tx3);
-        assert.strictEqual(r.detected,    true);
+        assert.strictEqual(r.detected, true);
         assert.strictEqual(r.input_count, 3);
     });
 });
@@ -256,35 +256,35 @@ describe('ciohHeuristic', () => {
 describe('changeDetectionHeuristic', () => {
     it('detects change when exactly one output is non-round', () => {
         const r = changeDetectionHeuristic.analyze(TX_MULTI_INPUT);
-        assert.strictEqual(r.detected,             true);
-        assert.strictEqual(r.change_output_index,  1);   // 123_456 sat
-        assert.strictEqual(r.round_unit_sats,      100_000);
+        assert.strictEqual(r.detected, true);
+        assert.strictEqual(r.change_output_index, 1);   // 123_456 sat
+        assert.strictEqual(r.round_unit_sats, 100_000);
     });
 
     it('does not detect change when all outputs are round', () => {
         const r = changeDetectionHeuristic.analyze(TX_ALL_ROUND);
-        assert.strictEqual(r.detected,            false);
+        assert.strictEqual(r.detected, false);
         assert.strictEqual(r.change_output_index, null);
     });
 
     it('does not detect change when two outputs are non-round (ambiguous)', () => {
         const r = changeDetectionHeuristic.analyze(TX_TWO_NON_ROUND);
-        assert.strictEqual(r.detected,            false);
+        assert.strictEqual(r.detected, false);
         assert.strictEqual(r.change_output_index, null);
     });
 
     it('respects round_unit_sats from context', () => {
         // With unit = 1_000_000, only 1_000_000 sat is round; 123_456 is not.
         const r = changeDetectionHeuristic.analyze(TX_MULTI_INPUT, { round_unit_sats: 1_000_000 });
-        assert.strictEqual(r.detected,            true);
+        assert.strictEqual(r.detected, true);
         assert.strictEqual(r.change_output_index, 1);
-        assert.strictEqual(r.round_unit_sats,     1_000_000);
+        assert.strictEqual(r.round_unit_sats, 1_000_000);
     });
 
     it('handles a transaction with no outputs', () => {
         const tx = { vin: [], vout: [] };
         const r = changeDetectionHeuristic.analyze(tx);
-        assert.strictEqual(r.detected,            false);
+        assert.strictEqual(r.detected, false);
         assert.strictEqual(r.change_output_index, null);
     });
 });
@@ -301,7 +301,7 @@ describe('createDefaultEngine', () => {
     it('report has both keys for a multi-input transaction', () => {
         const engine = createDefaultEngine();
         const report = engine.analyzeTransaction(TX_MULTI_INPUT);
-        assert.ok('cioh'             in report);
+        assert.ok('cioh' in report);
         assert.ok('change_detection' in report);
     });
 
@@ -321,7 +321,7 @@ describe('createDefaultEngine', () => {
     it('neither heuristic detects on a coinbase transaction', () => {
         const engine = createDefaultEngine();
         const report = engine.analyzeTransaction(TX_COINBASE);
-        assert.strictEqual(report.cioh.detected,             false);
+        assert.strictEqual(report.cioh.detected, false);
         assert.strictEqual(report.change_detection.detected, false);
     });
 
@@ -329,7 +329,7 @@ describe('createDefaultEngine', () => {
         const engine = createDefaultEngine();
         const report = engine.analyzeTransaction(TX_MULTI_INPUT);
         // Verify the shape: { cioh: { detected: bool }, change_detection: { detected: bool } }
-        assert.strictEqual(typeof report.cioh.detected,             'boolean');
+        assert.strictEqual(typeof report.cioh.detected, 'boolean');
         assert.strictEqual(typeof report.change_detection.detected, 'boolean');
     });
 });
