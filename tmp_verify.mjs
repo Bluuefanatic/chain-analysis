@@ -1,6 +1,19 @@
 import { createHash } from 'node:crypto';
 
-// Genesis coinbase  — correct canonical hex from bitcoin/bitcoin src/test/data
+// Genesis coinbase — exact canonical hex
+// scriptSig = 4d bytes:
+//   04ffff001d (4 bytes extranonce prefix)
+//   01 04 (push 4 bytes)
+//   ... 'The Times...' (45 bytes)
+// Total scriptSig: 4+1+1+45 = 51? No, 0x4d=77:
+//   04ffff001d = 4 bytes
+//   0104 = 2 bytes
+//   45 bytes of ASCII = 45 bytes => 4+2+45=51, not 77
+// Actually 0x4d=77:
+//   ff ff 00 1d = 4 bytes
+//   01 04 = 2 bytes
+//   rest = 71 bytes  => 4+2+71=77
+// confirmed canonical:
 const GENESIS = '01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1310f8a907786b5595ab60e44f3f2a84cc860022578b8d2e63769ef0b5e45d2c88f63f4f0374f26e4c48caab4f0043ac00000000';
 const gb = Buffer.from(GENESIS, 'hex');
 console.log('genesis bytes:', gb.length);
@@ -14,7 +27,7 @@ console.log('b170 bytes:', b170.length);
 const t1 = createHash('sha256').update(b170).digest();
 console.log('b170 txid:', Buffer.from(createHash('sha256').update(t1).digest()).reverse().toString('hex'));
 // check values
-let pos = 4+1+32+4;
+let pos = 4 + 1 + 32 + 4;
 const scriptLen = b170[pos]; pos += 1 + scriptLen + 4;  // scriptSig + sequence
 pos += 1; // outCount
 const v0 = Number(b170.readBigInt64LE(pos)); console.log('vout[0] sats:', v0);
@@ -26,7 +39,7 @@ const sw = Buffer.from(SW, 'hex');
 console.log('segwit bytes:', sw.length);
 // txid = hash of NON-WITNESS serialization
 // rebuild: version + inputs(no witness) + outputs + locktime
-function hash256r(b) { const a=createHash('sha256').update(b).digest(); return Buffer.from(createHash('sha256').update(a).digest()).reverse().toString('hex'); }
+function hash256r(b) { const a = createHash('sha256').update(b).digest(); return Buffer.from(createHash('sha256').update(a).digest()).reverse().toString('hex'); }
 // just hash the whole thing to see - we need the non-witness form
 // parse manually
 let sp = 0;
@@ -35,17 +48,17 @@ const isSegwit = sw[sp] === 0x00;
 if (isSegwit) sp += 2;
 const inCnt = sw[sp++];
 const inStart = sp;
-for (let i=0;i<inCnt;i++){ sp+=32+4; const sl=sw[sp++]; sp+=sl+4; }
+for (let i = 0; i < inCnt; i++) { sp += 32 + 4; const sl = sw[sp++]; sp += sl + 4; }
 const inEnd = sp;
 const outCnt = sw[sp++];
-for (let i=0;i<outCnt;i++){ sp+=8; const sl=sw[sp++]; sp+=sl; }
+for (let i = 0; i < outCnt; i++) { sp += 8; const sl = sw[sp++]; sp += sl; }
 const outEnd = sp;
 // witness
-for (let i=0;i<inCnt;i++){const wc=sw[sp++];for(let j=0;j<wc;j++){const wl=sw[sp++];sp+=wl;}}
+for (let i = 0; i < inCnt; i++) { const wc = sw[sp++]; for (let j = 0; j < wc; j++) { const wl = sw[sp++]; sp += wl; } }
 sp += 4; // locktime
 console.log('consumed:', sp, '/', sw.length);
 // build legacy serialization
-const vBuf = Buffer.allocUnsafe(4); vBuf.writeInt32LE(sver,0);
-const ltBuf = Buffer.allocUnsafe(4); ltBuf.writeUInt32LE(sw.readUInt32LE(sp-4),0);
-const legacy = Buffer.concat([vBuf, sw.subarray(4+2, outEnd), ltBuf]);
+const vBuf = Buffer.allocUnsafe(4); vBuf.writeInt32LE(sver, 0);
+const ltBuf = Buffer.allocUnsafe(4); ltBuf.writeUInt32LE(sw.readUInt32LE(sp - 4), 0);
+const legacy = Buffer.concat([vBuf, sw.subarray(4 + 2, outEnd), ltBuf]);
 console.log('segwit txid (non-witness):', hash256r(legacy));
