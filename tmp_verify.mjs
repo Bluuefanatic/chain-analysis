@@ -1,20 +1,116 @@
 import { createHash } from 'node:crypto';
+import { writeFileSync } from 'node:fs';
 
-// Genesis coinbase — exact canonical hex
-// scriptSig = 4d bytes:
-//   04ffff001d (4 bytes extranonce prefix)
-//   01 04 (push 4 bytes)
-//   ... 'The Times...' (45 bytes)
-// Total scriptSig: 4+1+1+45 = 51? No, 0x4d=77:
-//   04ffff001d = 4 bytes
-//   0104 = 2 bytes
-//   45 bytes of ASCII = 45 bytes => 4+2+45=51, not 77
-// Actually 0x4d=77:
-//   ff ff 00 1d = 4 bytes
-//   01 04 = 2 bytes
-//   rest = 71 bytes  => 4+2+71=77
-// confirmed canonical:
-const GENESIS = '01000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a0100000043410496b538e853519c726a2c91e61ec11600ae1310f8a907786b5595ab60e44f3f2a84cc860022578b8d2e63769ef0b5e45d2c88f63f4f0374f26e4c48caab4f0043ac00000000';
+const h256 = b => Buffer.from(
+  createHash('sha256').update(createHash('sha256').update(b).digest()).digest()
+).reverse().toString('hex');
+
+// ── Genesis coinbase ─────────────────────────────────────────────────────────
+const gVersion = Buffer.alloc(4); gVersion.writeInt32LE(1, 0);
+const gPrevTxid = Buffer.alloc(32, 0);
+const gPrevVout = Buffer.alloc(4, 0xff);
+const gScriptSig = Buffer.from(
+  '04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73',
+  'hex'
+);
+const gSSLen = Buffer.from([gScriptSig.length]);
+const gSeq = Buffer.alloc(4, 0xff);
+const gValue = Buffer.alloc(8); gValue.writeBigInt64LE(5_000_000_000n, 0);
+const gSPK = Buffer.from(
+  '04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f',
+  'hex'
+);
+const gSPKScript = Buffer.concat([Buffer.from([0x41]), gSPK, Buffer.from([0xac])]);
+const gSPKLen = Buffer.from([gSPKScript.length]);
+const gLocktime = Buffer.alloc(4);
+const GENESIS = Buffer.concat([
+  gVersion, Buffer.from([0x01]), gPrevTxid, gPrevVout,
+  gSSLen, gScriptSig, gSeq,
+  Buffer.from([0x01]), gValue, gSPKLen, gSPKScript,
+  gLocktime,
+]);
+
+// ── Synthetic legacy tx (2 outputs, version=2) ───────────────────────────────
+const lVersion = Buffer.alloc(4); lVersion.writeInt32LE(2, 0);
+const lPrevTxid = Buffer.from('4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b', 'hex').reverse();
+const lPrevVout = Buffer.alloc(4, 0);
+const lScriptSig = Buffer.from(
+  '47304402abcdef01234567890a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b0220abcdef01234567890a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b01',
+  'hex'
+);
+const lSSLen = Buffer.from([lScriptSig.length]);
+const lSeq = Buffer.alloc(4, 0xff);
+const lV0 = Buffer.alloc(8); lV0.writeBigInt64LE(100_000_000n, 0);
+const lSPK0 = Buffer.concat([Buffer.from('76a914', 'hex'), Buffer.alloc(20, 0xab), Buffer.from('88ac', 'hex')]);
+const lSPK0Len = Buffer.from([lSPK0.length]);
+const lV1 = Buffer.alloc(8); lV1.writeBigInt64LE(50_000_000n, 0);
+const lSPK1 = Buffer.concat([Buffer.from('76a914', 'hex'), Buffer.alloc(20, 0xcd), Buffer.from('88ac', 'hex')]);
+const lSPK1Len = Buffer.from([lSPK1.length]);
+const lLocktime = Buffer.alloc(4);
+const LEGACY = Buffer.concat([
+  lVersion, Buffer.from([0x01]),
+  lPrevTxid, lPrevVout, lSSLen, lScriptSig, lSeq,
+  Buffer.from([0x02]),
+  lV0, lSPK0Len, lSPK0,
+  lV1, lSPK1Len, lSPK1,
+  lLocktime,
+]);
+
+// ── Synthetic SegWit tx (P2WPKH, 1 in, 1 out) ───────────────────────────────
+const swVersion = Buffer.alloc(4); swVersion.writeInt32LE(1, 0);
+const swMarker = Buffer.from([0x00, 0x01]);
+const swPrevTxid = Buffer.from('4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b', 'hex').reverse();
+const swPrevVout = Buffer.alloc(4, 0);
+const swEmptySS = Buffer.from([0x00]);
+const swSeq = Buffer.alloc(4); swSeq.writeUInt32LE(0xfffffffd, 0);
+const swOutVal = Buffer.alloc(8); swOutVal.writeBigInt64LE(99_000_000n, 0);
+const swSPK = Buffer.concat([Buffer.from('0014', 'hex'), Buffer.alloc(20, 0xaa)]);
+const swSPKLen = Buffer.from([swSPK.length]);
+const swWitSig = Buffer.alloc(71, 0x31);
+const swWitPubKey = Buffer.concat([Buffer.from([0x02]), Buffer.alloc(32, 0xab)]);
+const swLocktime = Buffer.alloc(4);
+const SEGWIT = Buffer.concat([
+  swVersion, swMarker, Buffer.from([0x01]),
+  swPrevTxid, swPrevVout, swEmptySS, swSeq,
+  Buffer.from([0x01]),
+  swOutVal, swSPKLen, swSPK,
+  // witness for input 0: 2 items
+  Buffer.from([0x02]),
+  Buffer.from([swWitSig.length]), swWitSig,
+  Buffer.from([swWitPubKey.length]), swWitPubKey,
+  swLocktime,
+]);
+// segwit txid = hash of legacy serialization (no marker/flag/witness)
+const swLegacy = Buffer.concat([
+  swVersion, Buffer.from([0x01]),
+  swPrevTxid, swPrevVout, swEmptySS, swSeq,
+  Buffer.from([0x01]),
+  swOutVal, swSPKLen, swSPK,
+  swLocktime,
+]);
+
+const out = {
+  genesis: {
+    hex: GENESIS.toString('hex'),
+    len: GENESIS.length,
+    txid: h256(GENESIS),
+    value_sats: Number(GENESIS.readBigInt64LE(4+1+32+4+1+77+4+1)),
+  },
+  legacy: {
+    hex: LEGACY.toString('hex'),
+    len: LEGACY.length,
+    txid: h256(LEGACY),
+  },
+  segwit: {
+    hex: SEGWIT.toString('hex'),
+    len: SEGWIT.length,
+    txid: h256(swLegacy),
+  },
+};
+
+console.log(JSON.stringify(out, null, 2));
+writeFileSync('tmp_fixtures.json', JSON.stringify(out, null, 2));
+
 const gb = Buffer.from(GENESIS, 'hex');
 console.log('genesis bytes:', gb.length);
 const g1 = createHash('sha256').update(gb).digest();
