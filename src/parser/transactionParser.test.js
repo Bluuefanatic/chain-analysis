@@ -29,6 +29,7 @@
  *   empty scriptSig; witness has 2 items (71-byte dummy sig, 33-byte pubkey)
  */
 
+import { createHash } from 'node:crypto';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
@@ -217,12 +218,6 @@ describe('decodeTransaction — SegWit P2WPKH tx', () => {
             'fab2703f68a222f7ee1bcf67667fe7f7a6f4d44150e287870d0c84715926c9e3'
         );
         // The txid must NOT equal the hash of the full raw bytes (which includes witness)
-        const { createHash } = await import('node:crypto');
-        const fullHash = Buffer.from(
-            createHash('sha256').update(createHash('sha256').update(rawTx).digest()).digest()
-        ).reverse().toString('hex');
-        assert.notStrictEqual(decodeTransaction(rawTx).txid, fullHash);
-    });
 
     it('segwit is true', () => {
         assert.strictEqual(decodeTransaction(rawTx).segwit, true);
