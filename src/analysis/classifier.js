@@ -41,11 +41,11 @@
  *   }
  */
 
-import { isCoinbase }        from '../heuristics/cioh.js';
-import { coinjoin }          from '../heuristics/coinjoin.js';
-import { consolidation }     from '../heuristics/consolidation.js';
-import { addressReuse }      from '../heuristics/addressReuse.js';
-import { detectScriptType }  from './scriptTypes.js';
+import { isCoinbase } from '../heuristics/cioh.js';
+import { coinjoin } from '../heuristics/coinjoin.js';
+import { consolidation } from '../heuristics/consolidation.js';
+import { addressReuse } from '../heuristics/addressReuse.js';
+import { detectScriptType } from './scriptTypes.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -94,21 +94,21 @@ export function classifyTransaction(tx, context = {}) {
         return { classification: 'unknown', heuristics: {} };
     }
 
-    const vin  = Array.isArray(tx?.vin)  ? tx.vin  : [];
+    const vin = Array.isArray(tx?.vin) ? tx.vin : [];
     const vout = Array.isArray(tx?.vout) ? tx.vout : [];
 
     // Run heuristics
-    const coinjoinResult      = coinjoin.analyze(tx);
+    const coinjoinResult = coinjoin.analyze(tx);
     const consolidationResult = consolidation.analyze(tx);
-    const addressReuseResult  = addressReuse.analyze(tx, context);
+    const addressReuseResult = addressReuse.analyze(tx, context);
 
     const heuristics = {
-        coinjoin:      coinjoinResult,
+        coinjoin: coinjoinResult,
         consolidation: consolidationResult,
         address_reuse: addressReuseResult,
     };
 
-    const inputCount  = vin.length;
+    const inputCount = vin.length;
     const outputCount = vout.length;
 
     // ── 1. CoinJoin ───────────────────────────────────────────────────────────
@@ -128,7 +128,7 @@ export function classifyTransaction(tx, context = {}) {
 
     // ── 4. Self-transfer ──────────────────────────────────────────────────────
     // Build the set of input scripts from prevouts for the self-transfer check.
-    const prevouts    = Array.isArray(context.prevouts) ? context.prevouts : [];
+    const prevouts = Array.isArray(context.prevouts) ? context.prevouts : [];
     const inputScripts = new Set(
         prevouts
             .map(p => ((p?.script_pubkey ?? p?.scriptPubKey) ?? '').toLowerCase())
