@@ -173,7 +173,7 @@ export const changeDetectionHeuristic = {
     /** @param {object} tx  @param {{ round_unit_sats?: number }} [context] */
     analyze(tx, context = {}) {
         const roundUnit = (context.round_unit_sats ?? 100_000);
-        const outputs   = Array.isArray(tx.vout) ? tx.vout : [];
+        const outputs = Array.isArray(tx.vout) ? tx.vout : [];
 
         const nonRoundIndices = outputs
             .map((o, i) => ({ i, value: o.value_sats }))
@@ -184,7 +184,7 @@ export const changeDetectionHeuristic = {
         return {
             detected,
             change_output_index: detected ? nonRoundIndices[0] : null,
-            round_unit_sats:     roundUnit,
+            round_unit_sats: roundUnit,
         };
     },
 };
