@@ -55,9 +55,9 @@
  */
 
 const COINBASE_PREV_TXID = '0'.repeat(64);
-const COINBASE_VOUT      = 0xffffffff;
+const COINBASE_VOUT = 0xffffffff;
 
-const CONFIDENCE_BASE  = 0.9;
+const CONFIDENCE_BASE = 0.9;
 const CONFIDENCE_DECAY = 0.12;
 
 // ── Exported helper ───────────────────────────────────────────────────────────
@@ -73,7 +73,7 @@ export function isCoinbase(tx) {
     return (
         vin.length === 1 &&
         vin[0].prev_txid === COINBASE_PREV_TXID &&
-        vin[0].vout      === COINBASE_VOUT
+        vin[0].vout === COINBASE_VOUT
     );
 }
 
@@ -94,7 +94,7 @@ export const cioh = {
      * @returns {CiohResult}
      */
     analyze(tx) {
-        const vin        = Array.isArray(tx?.vin) ? tx.vin : [];
+        const vin = Array.isArray(tx?.vin) ? tx.vin : [];
         const inputCount = vin.length;
 
         if (isCoinbase(tx) || inputCount < 2) {
@@ -105,9 +105,9 @@ export const cioh = {
             CONFIDENCE_BASE * Math.exp(-CONFIDENCE_DECAY * (inputCount - 2));
 
         return {
-            detected:    true,
+            detected: true,
             input_count: inputCount,
-            confidence:  Math.round(confidence * 1000) / 1000, // 3 d.p.
+            confidence: Math.round(confidence * 1000) / 1000, // 3 d.p.
         };
     },
 };
