@@ -41,7 +41,7 @@
 import { isCoinbase } from './cioh.js';
 
 const CONSOLIDATION_RATIO = 3.0;
-const MIN_INPUTS          = 3;
+const MIN_INPUTS = 3;
 
 export const consolidation = {
     id: 'consolidation',
@@ -55,7 +55,7 @@ export const consolidation = {
             return { detected: false, input_count: 1, output_count: 0, ratio: 0 };
         }
 
-        const inputCount  = Array.isArray(tx?.vin)  ? tx.vin.length  : 0;
+        const inputCount = Array.isArray(tx?.vin) ? tx.vin.length : 0;
         const outputCount = Array.isArray(tx?.vout) ? tx.vout.length : 0;
 
         if (outputCount === 0) {
@@ -65,8 +65,8 @@ export const consolidation = {
         const ratio = Math.round((inputCount / outputCount) * 100) / 100;
 
         const detected =
-            inputCount  >= MIN_INPUTS          &&
-            ratio       >= CONSOLIDATION_RATIO;
+            inputCount >= MIN_INPUTS &&
+            ratio >= CONSOLIDATION_RATIO;
 
         return { detected, input_count: inputCount, output_count: outputCount, ratio };
     },
