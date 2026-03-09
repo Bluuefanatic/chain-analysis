@@ -65,7 +65,7 @@ export const addressReuse = {
         }
 
         return {
-            detected:       reusedIndices.length > 0,
+            detected: reusedIndices.length > 0,
             reused_indices: reusedIndices,
         };
     },
