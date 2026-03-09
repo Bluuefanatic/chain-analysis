@@ -9,7 +9,9 @@
     "scripts": {
         "setup": "bash setup.sh",
         "cli": "node src/cli.js",
-        "web": "node src/server.js"
+        "web": "node src/server.js",
+        "test": "node --test --test-reporter=spec",
+        "test:parser": "node --test src/parser/blockParser.test.js"
     },
     "dependencies": {
         "bitcoinjs-lib": "^6.1.6",
