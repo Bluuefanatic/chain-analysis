@@ -13,22 +13,22 @@ import { cioh, isCoinbase } from './cioh.js';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
-const NULL_TXID  = '0'.repeat(64);
+const NULL_TXID = '0'.repeat(64);
 const DUMMY_TXID = 'ab'.repeat(32);
 
 function makeVin(count) {
     return Array.from({ length: count }, (_, i) => ({
         prev_txid: DUMMY_TXID,
-        vout:      i,
+        vout: i,
         scriptSig: 'dead',
-        sequence:  0xffffffff,
+        sequence: 0xffffffff,
     }));
 }
 
-const TX_0_INPUTS  = { vin: [] };
-const TX_1_INPUT   = { vin: makeVin(1) };
-const TX_2_INPUTS  = { vin: makeVin(2) };
-const TX_3_INPUTS  = { vin: makeVin(3) };
+const TX_0_INPUTS = { vin: [] };
+const TX_1_INPUT = { vin: makeVin(1) };
+const TX_2_INPUTS = { vin: makeVin(2) };
+const TX_3_INPUTS = { vin: makeVin(3) };
 const TX_10_INPUTS = { vin: makeVin(10) };
 
 const TX_COINBASE = {
@@ -76,21 +76,21 @@ describe('cioh.analyze — id', () => {
 describe('cioh.analyze — non-detection cases', () => {
     it('not detected for 0 inputs', () => {
         const r = cioh.analyze(TX_0_INPUTS);
-        assert.strictEqual(r.detected,    false);
+        assert.strictEqual(r.detected, false);
         assert.strictEqual(r.input_count, 0);
-        assert.strictEqual(r.confidence,  0.0);
+        assert.strictEqual(r.confidence, 0.0);
     });
 
     it('not detected for 1 input', () => {
         const r = cioh.analyze(TX_1_INPUT);
-        assert.strictEqual(r.detected,    false);
+        assert.strictEqual(r.detected, false);
         assert.strictEqual(r.input_count, 1);
-        assert.strictEqual(r.confidence,  0.0);
+        assert.strictEqual(r.confidence, 0.0);
     });
 
     it('not detected for a coinbase transaction', () => {
         const r = cioh.analyze(TX_COINBASE);
-        assert.strictEqual(r.detected,   false);
+        assert.strictEqual(r.detected, false);
         assert.strictEqual(r.confidence, 0.0);
     });
 });
@@ -98,19 +98,19 @@ describe('cioh.analyze — non-detection cases', () => {
 describe('cioh.analyze — detection cases', () => {
     it('detected for 2 inputs', () => {
         const r = cioh.analyze(TX_2_INPUTS);
-        assert.strictEqual(r.detected,    true);
+        assert.strictEqual(r.detected, true);
         assert.strictEqual(r.input_count, 2);
     });
 
     it('detected for 3 inputs', () => {
         const r = cioh.analyze(TX_3_INPUTS);
-        assert.strictEqual(r.detected,    true);
+        assert.strictEqual(r.detected, true);
         assert.strictEqual(r.input_count, 3);
     });
 
     it('detected for 10 inputs', () => {
         const r = cioh.analyze(TX_10_INPUTS);
-        assert.strictEqual(r.detected,    true);
+        assert.strictEqual(r.detected, true);
         assert.strictEqual(r.input_count, 10);
     });
 });
@@ -127,10 +127,10 @@ describe('cioh.analyze — confidence model', () => {
     });
 
     it('confidence decreases as input count grows', () => {
-        const c2  = cioh.analyze(TX_2_INPUTS).confidence;
-        const c3  = cioh.analyze(TX_3_INPUTS).confidence;
+        const c2 = cioh.analyze(TX_2_INPUTS).confidence;
+        const c3 = cioh.analyze(TX_3_INPUTS).confidence;
         const c10 = cioh.analyze(TX_10_INPUTS).confidence;
-        assert.ok(c2 > c3,  `2-input confidence (${c2}) should exceed 3-input (${c3})`);
+        assert.ok(c2 > c3, `2-input confidence (${c2}) should exceed 3-input (${c3})`);
         assert.ok(c3 > c10, `3-input confidence (${c3}) should exceed 10-input (${c10})`);
     });
 
