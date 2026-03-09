@@ -108,9 +108,9 @@ describe('classifyTransaction — consolidation', () => {
     });
 
     it('classifies as consolidation for 9-in / 3-out (ratio 3.0)', () => {
-        const tx = makeTx(9, [300_000, 300_000, 300_000]);
-        // ratio = 9/3 = 3.0, but ≥3 outputs would be batch_payment if consolidation
-        // didn't fire — consolidation fires first
+        // Use distinct values so coinjoin does not fire
+        const tx = makeTx(9, [100_000, 200_000, 300_000]);
+        // ratio = 9/3 = 3.0; consolidation fires before batch_payment
         assert.strictEqual(classifyTransaction(tx).classification, 'consolidation');
     });
 

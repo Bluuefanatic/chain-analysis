@@ -140,7 +140,7 @@ export function classifyTransaction(tx, context = {}) {
     }
 
     // ── 5. Simple payment ─────────────────────────────────────────────────────
-    if (inputCount <= 2 && outputCount <= 2) {
+    if (inputCount >= 1 && outputCount >= 1 && inputCount <= 2 && outputCount <= 2) {
         return { classification: 'simple_payment', heuristics };
     }
 
