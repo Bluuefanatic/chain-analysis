@@ -136,10 +136,10 @@ function safeFeeStats(txEntries) {
     try {
         const raw = computeFeeStats(txEntries);
         return {
-            min_sat_vb:    +raw.min_sat_vb.toFixed(3),
-            max_sat_vb:    +raw.max_sat_vb.toFixed(3),
+            min_sat_vb: +raw.min_sat_vb.toFixed(3),
+            max_sat_vb: +raw.max_sat_vb.toFixed(3),
             median_sat_vb: +raw.median_sat_vb.toFixed(3),
-            mean_sat_vb:   +raw.mean_sat_vb.toFixed(3),
+            mean_sat_vb: +raw.mean_sat_vb.toFixed(3),
         };
     } catch {
         return { ...ZERO_FEE_STATS };
@@ -187,9 +187,9 @@ function buildBlockSection(blockEntry) {
     const txEntries = Array.isArray(transactions) ? transactions : [];
 
     const heuristicsApplied = collectHeuristicIds(txEntries);
-    const flagged           = countFlagged(txEntries);
-    const scriptDist        = buildScriptDist(txEntries);
-    const feeStats          = safeFeeStats(txEntries);
+    const flagged = countFlagged(txEntries);
+    const scriptDist = buildScriptDist(txEntries);
+    const feeStats = safeFeeStats(txEntries);
 
     return {
         block_hash,
@@ -197,14 +197,14 @@ function buildBlockSection(blockEntry) {
         tx_count: txCount,
         analysis_summary: {
             total_transactions_analyzed: txCount,
-            heuristics_applied:          heuristicsApplied,
-            flagged_transactions:         flagged,
-            script_type_distribution:    scriptDist,
-            fee_rate_stats:              feeStats,
+            heuristics_applied: heuristicsApplied,
+            flagged_transactions: flagged,
+            script_type_distribution: scriptDist,
+            fee_rate_stats: feeStats,
         },
         transactions: txEntries.map(({ tx, heuristics, classification }) => ({
-            txid:           tx?.txid ?? '',
-            heuristics:     heuristics ?? {},
+            txid: tx?.txid ?? '',
+            heuristics: heuristics ?? {},
             classification: classification ?? 'unknown',
         })),
     };
@@ -238,14 +238,14 @@ export function buildReport(filename, blocksData) {
 
     // ── File-level aggregation ────────────────────────────────────────────────
 
-    const totalTxs     = blocks.reduce((s, b) => s + b.tx_count, 0);
+    const totalTxs = blocks.reduce((s, b) => s + b.tx_count, 0);
     const totalFlagged = blocks.reduce(
         (s, b) => s + b.analysis_summary.flagged_transactions, 0
     );
-    const mergedScriptDist    = mergeScriptDists(
+    const mergedScriptDist = mergeScriptDists(
         blocks.map(b => b.analysis_summary.script_type_distribution)
     );
-    const mergedHeuristicIds  = mergeHeuristicIds(
+    const mergedHeuristicIds = mergeHeuristicIds(
         blocks.map(b => b.analysis_summary.heuristics_applied)
     );
 
@@ -255,16 +255,16 @@ export function buildReport(filename, blocksData) {
     const feeStats = safeFeeStats(allTxEntries);
 
     return {
-        ok:          true,
-        mode:        'chain_analysis',
-        file:        filename,
+        ok: true,
+        mode: 'chain_analysis',
+        file: filename,
         block_count: blocks.length,
         analysis_summary: {
             total_transactions_analyzed: totalTxs,
-            heuristics_applied:          mergedHeuristicIds,
-            flagged_transactions:         totalFlagged,
-            script_type_distribution:    mergedScriptDist,
-            fee_rate_stats:              feeStats,
+            heuristics_applied: mergedHeuristicIds,
+            flagged_transactions: totalFlagged,
+            script_type_distribution: mergedScriptDist,
+            fee_rate_stats: feeStats,
         },
         blocks,
     };
@@ -284,9 +284,9 @@ export function buildReport(filename, blocksData) {
  */
 export async function generateJsonReport(blkFilePath, blocksData, options = {}) {
     const filename = path.basename(blkFilePath);
-    const stem     = filename.replace(/\.dat$/i, '');
-    const outDir   = options.outDir ?? path.join(process.cwd(), 'out');
-    const outPath  = path.join(outDir, `${stem}.json`);
+    const stem = filename.replace(/\.dat$/i, '');
+    const outDir = options.outDir ?? path.join(process.cwd(), 'out');
+    const outPath = path.join(outDir, `${stem}.json`);
 
     const report = buildReport(filename, blocksData);
 
