@@ -52,7 +52,7 @@ export const coinjoin = {
             return { detected: false, equal_output_count: 0, denomination_sats: 0 };
         }
 
-        const vin  = Array.isArray(tx?.vin)  ? tx.vin  : [];
+        const vin = Array.isArray(tx?.vin) ? tx.vin : [];
         const vout = Array.isArray(tx?.vout) ? tx.vout : [];
 
         if (vin.length < 2) {
@@ -68,12 +68,12 @@ export const coinjoin = {
 
         // Find the value with the highest count that also meets the minimum denomination
         let bestDenomination = 0;
-        let bestCount        = 0;
+        let bestCount = 0;
 
         for (const [value, count] of valueCounts) {
             if (count >= 2 && value >= MIN_DENOMINATION_SATS && count > bestCount) {
                 bestDenomination = value;
-                bestCount        = count;
+                bestCount = count;
             }
         }
 
@@ -82,9 +82,9 @@ export const coinjoin = {
         }
 
         return {
-            detected:           true,
+            detected: true,
             equal_output_count: bestCount,
-            denomination_sats:  bestDenomination,
+            denomination_sats: bestDenomination,
         };
     },
 };
