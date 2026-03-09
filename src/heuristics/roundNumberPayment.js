@@ -58,7 +58,7 @@ export const roundNumberPayment = {
         const outputs = Array.isArray(tx?.vout) ? tx.vout : [];
 
         const paymentIndices = [];
-        let   smallestCadence = Infinity;
+        let smallestCadence = Infinity;
 
         for (let i = 0; i < outputs.length; i++) {
             const value = outputs[i].value_sats;
@@ -77,7 +77,7 @@ export const roundNumberPayment = {
         return {
             detected,
             payment_indices: paymentIndices,
-            cadence_sats:    detected ? smallestCadence : 0,
+            cadence_sats: detected ? smallestCadence : 0,
         };
     },
 };
