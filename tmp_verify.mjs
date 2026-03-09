@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 
 const h256 = b => Buffer.from(
-  createHash('sha256').update(createHash('sha256').update(b).digest()).digest()
+    createHash('sha256').update(createHash('sha256').update(b).digest()).digest()
 ).reverse().toString('hex');
 
 // ── Genesis coinbase ─────────────────────────────────────────────────────────
@@ -10,24 +10,24 @@ const gVersion = Buffer.alloc(4); gVersion.writeInt32LE(1, 0);
 const gPrevTxid = Buffer.alloc(32, 0);
 const gPrevVout = Buffer.alloc(4, 0xff);
 const gScriptSig = Buffer.from(
-  '04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73',
-  'hex'
+    '04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73',
+    'hex'
 );
 const gSSLen = Buffer.from([gScriptSig.length]);
 const gSeq = Buffer.alloc(4, 0xff);
 const gValue = Buffer.alloc(8); gValue.writeBigInt64LE(5_000_000_000n, 0);
 const gSPK = Buffer.from(
-  '04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f',
-  'hex'
+    '04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f',
+    'hex'
 );
 const gSPKScript = Buffer.concat([Buffer.from([0x41]), gSPK, Buffer.from([0xac])]);
 const gSPKLen = Buffer.from([gSPKScript.length]);
 const gLocktime = Buffer.alloc(4);
 const GENESIS = Buffer.concat([
-  gVersion, Buffer.from([0x01]), gPrevTxid, gPrevVout,
-  gSSLen, gScriptSig, gSeq,
-  Buffer.from([0x01]), gValue, gSPKLen, gSPKScript,
-  gLocktime,
+    gVersion, Buffer.from([0x01]), gPrevTxid, gPrevVout,
+    gSSLen, gScriptSig, gSeq,
+    Buffer.from([0x01]), gValue, gSPKLen, gSPKScript,
+    gLocktime,
 ]);
 
 // ── Synthetic legacy tx (2 outputs, version=2) ───────────────────────────────
@@ -35,8 +35,8 @@ const lVersion = Buffer.alloc(4); lVersion.writeInt32LE(2, 0);
 const lPrevTxid = Buffer.from('4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b', 'hex').reverse();
 const lPrevVout = Buffer.alloc(4, 0);
 const lScriptSig = Buffer.from(
-  '47304402abcdef01234567890a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b0220abcdef01234567890a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b01',
-  'hex'
+    '47304402abcdef01234567890a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b0220abcdef01234567890a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b01',
+    'hex'
 );
 const lSSLen = Buffer.from([lScriptSig.length]);
 const lSeq = Buffer.alloc(4, 0xff);
@@ -48,12 +48,12 @@ const lSPK1 = Buffer.concat([Buffer.from('76a914', 'hex'), Buffer.alloc(20, 0xcd
 const lSPK1Len = Buffer.from([lSPK1.length]);
 const lLocktime = Buffer.alloc(4);
 const LEGACY = Buffer.concat([
-  lVersion, Buffer.from([0x01]),
-  lPrevTxid, lPrevVout, lSSLen, lScriptSig, lSeq,
-  Buffer.from([0x02]),
-  lV0, lSPK0Len, lSPK0,
-  lV1, lSPK1Len, lSPK1,
-  lLocktime,
+    lVersion, Buffer.from([0x01]),
+    lPrevTxid, lPrevVout, lSSLen, lScriptSig, lSeq,
+    Buffer.from([0x02]),
+    lV0, lSPK0Len, lSPK0,
+    lV1, lSPK1Len, lSPK1,
+    lLocktime,
 ]);
 
 // ── Synthetic SegWit tx (P2WPKH, 1 in, 1 out) ───────────────────────────────
@@ -70,42 +70,42 @@ const swWitSig = Buffer.alloc(71, 0x31);
 const swWitPubKey = Buffer.concat([Buffer.from([0x02]), Buffer.alloc(32, 0xab)]);
 const swLocktime = Buffer.alloc(4);
 const SEGWIT = Buffer.concat([
-  swVersion, swMarker, Buffer.from([0x01]),
-  swPrevTxid, swPrevVout, swEmptySS, swSeq,
-  Buffer.from([0x01]),
-  swOutVal, swSPKLen, swSPK,
-  // witness for input 0: 2 items
-  Buffer.from([0x02]),
-  Buffer.from([swWitSig.length]), swWitSig,
-  Buffer.from([swWitPubKey.length]), swWitPubKey,
-  swLocktime,
+    swVersion, swMarker, Buffer.from([0x01]),
+    swPrevTxid, swPrevVout, swEmptySS, swSeq,
+    Buffer.from([0x01]),
+    swOutVal, swSPKLen, swSPK,
+    // witness for input 0: 2 items
+    Buffer.from([0x02]),
+    Buffer.from([swWitSig.length]), swWitSig,
+    Buffer.from([swWitPubKey.length]), swWitPubKey,
+    swLocktime,
 ]);
 // segwit txid = hash of legacy serialization (no marker/flag/witness)
 const swLegacy = Buffer.concat([
-  swVersion, Buffer.from([0x01]),
-  swPrevTxid, swPrevVout, swEmptySS, swSeq,
-  Buffer.from([0x01]),
-  swOutVal, swSPKLen, swSPK,
-  swLocktime,
+    swVersion, Buffer.from([0x01]),
+    swPrevTxid, swPrevVout, swEmptySS, swSeq,
+    Buffer.from([0x01]),
+    swOutVal, swSPKLen, swSPK,
+    swLocktime,
 ]);
 
 const out = {
-  genesis: {
-    hex: GENESIS.toString('hex'),
-    len: GENESIS.length,
-    txid: h256(GENESIS),
-    value_sats: Number(GENESIS.readBigInt64LE(4+1+32+4+1+77+4+1)),
-  },
-  legacy: {
-    hex: LEGACY.toString('hex'),
-    len: LEGACY.length,
-    txid: h256(LEGACY),
-  },
-  segwit: {
-    hex: SEGWIT.toString('hex'),
-    len: SEGWIT.length,
-    txid: h256(swLegacy),
-  },
+    genesis: {
+        hex: GENESIS.toString('hex'),
+        len: GENESIS.length,
+        txid: h256(GENESIS),
+        value_sats: Number(GENESIS.readBigInt64LE(4 + 1 + 32 + 4 + 1 + 77 + 4 + 1)),
+    },
+    legacy: {
+        hex: LEGACY.toString('hex'),
+        len: LEGACY.length,
+        txid: h256(LEGACY),
+    },
+    segwit: {
+        hex: SEGWIT.toString('hex'),
+        len: SEGWIT.length,
+        txid: h256(swLegacy),
+    },
 };
 
 console.log(JSON.stringify(out, null, 2));
