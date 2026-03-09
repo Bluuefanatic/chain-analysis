@@ -381,10 +381,10 @@ export function parseRevFile(revPath, xorKey = null) {
                 const coin = parseCoin(buf, pos);
                 pos += coin.size;
                 coins.push({
-                    value_sats:   coin.value_sats,
+                    value_sats: coin.value_sats,
                     script_pubkey: coin.script_pubkey,
-                    height:       coin.height,
-                    is_coinbase:  coin.is_coinbase,
+                    height: coin.height,
+                    is_coinbase: coin.is_coinbase,
                 });
             }
             txUndos.push(coins);
@@ -435,7 +435,7 @@ export function resolvePrevouts(transaction, txUndoCoins) {
     }
 
     return txUndoCoins.map(coin => ({
-        value_sats:   coin.value_sats,
+        value_sats: coin.value_sats,
         script_pubkey: coin.script_pubkey,
     }));
 }
