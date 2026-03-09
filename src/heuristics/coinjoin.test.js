@@ -13,9 +13,9 @@ import { coinjoin } from './coinjoin.js';
 
 // ── Fixtures ───────────────────────────────────────────────────────────────────
 
-const NULL_TXID  = '0'.repeat(64);
+const NULL_TXID = '0'.repeat(64);
 const DUMMY_TXID = 'ab'.repeat(32);
-const SPK        = (n) => '0014' + n.toString(16).padStart(2, '0').repeat(20);
+const SPK = (n) => '0014' + n.toString(16).padStart(2, '0').repeat(20);
 
 function makeVin(count) {
     return Array.from({ length: count }, (_, i) => ({
@@ -28,7 +28,7 @@ function makeVout(values) {
 }
 
 const COINBASE_TX = {
-    vin:  [{ prev_txid: NULL_TXID, vout: 0xffffffff, scriptSig: '', sequence: 0xffffffff }],
+    vin: [{ prev_txid: NULL_TXID, vout: 0xffffffff, scriptSig: '', sequence: 0xffffffff }],
     vout: makeVout([625_000_000]),
 };
 
@@ -47,7 +47,7 @@ describe('coinjoin — coinbase skip', () => {
         const r = coinjoin.analyze(COINBASE_TX);
         assert.strictEqual(r.detected, false);
         assert.strictEqual(r.equal_output_count, 0);
-        assert.strictEqual(r.denomination_sats,  0);
+        assert.strictEqual(r.denomination_sats, 0);
     });
 });
 
@@ -83,38 +83,38 @@ describe('coinjoin — detection', () => {
         // Classic 2-party join: 2 equal denomination outputs
         const tx = { vin: makeVin(2), vout: makeVout([100_000, 100_000]) };
         const r = coinjoin.analyze(tx);
-        assert.strictEqual(r.detected,           true);
+        assert.strictEqual(r.detected, true);
         assert.strictEqual(r.equal_output_count, 2);
-        assert.strictEqual(r.denomination_sats,  100_000);
+        assert.strictEqual(r.denomination_sats, 100_000);
     });
 
     it('detects a 5-output Wasabi-style join', () => {
         const DENOM = 1_000_000;
         const tx = {
-            vin:  makeVin(5),
+            vin: makeVin(5),
             vout: makeVout([DENOM, DENOM, DENOM, DENOM, DENOM]),
         };
         const r = coinjoin.analyze(tx);
-        assert.strictEqual(r.detected,           true);
+        assert.strictEqual(r.detected, true);
         assert.strictEqual(r.equal_output_count, 5);
-        assert.strictEqual(r.denomination_sats,  DENOM);
+        assert.strictEqual(r.denomination_sats, DENOM);
     });
 
     it('picks the denomination with the highest equal-output count', () => {
         // 3 outputs of 100_000, 2 outputs of 200_000, 1 change output
         const tx = {
-            vin:  makeVin(4),
+            vin: makeVin(4),
             vout: makeVout([100_000, 100_000, 100_000, 200_000, 200_000, 987_654]),
         };
         const r = coinjoin.analyze(tx);
-        assert.strictEqual(r.detected,           true);
-        assert.strictEqual(r.denomination_sats,  100_000);
+        assert.strictEqual(r.detected, true);
+        assert.strictEqual(r.denomination_sats, 100_000);
         assert.strictEqual(r.equal_output_count, 3);
     });
 
     it('detects even when mixed with non-equal change outputs', () => {
         const tx = {
-            vin:  makeVin(3),
+            vin: makeVin(3),
             vout: makeVout([500_000, 500_000, 123_456]),
         };
         const r = coinjoin.analyze(tx);

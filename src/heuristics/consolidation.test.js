@@ -13,9 +13,9 @@ import { consolidation } from './consolidation.js';
 
 // ── Fixtures ───────────────────────────────────────────────────────────────────
 
-const NULL_TXID  = '0'.repeat(64);
+const NULL_TXID = '0'.repeat(64);
 const DUMMY_TXID = 'ab'.repeat(32);
-const SPK        = (n) => '0014' + n.toString(16).padStart(2, '0').repeat(20);
+const SPK = (n) => '0014' + n.toString(16).padStart(2, '0').repeat(20);
 
 function makeVin(count) {
     return Array.from({ length: count }, (_, i) => ({
@@ -30,7 +30,7 @@ function makeVout(count) {
 }
 
 const COINBASE_TX = {
-    vin:  [{ prev_txid: NULL_TXID, vout: 0xffffffff, scriptSig: '', sequence: 0xffffffff }],
+    vin: [{ prev_txid: NULL_TXID, vout: 0xffffffff, scriptSig: '', sequence: 0xffffffff }],
     vout: makeVout(1),
 };
 
@@ -56,9 +56,9 @@ describe('consolidation — coinbase skip', () => {
 describe('consolidation — non-detection', () => {
     it('not detected for a typical 2-in / 2-out spend (ratio 1.0)', () => {
         const tx = { vin: makeVin(2), vout: makeVout(2) };
-        const r  = consolidation.analyze(tx);
+        const r = consolidation.analyze(tx);
         assert.strictEqual(r.detected, false);
-        assert.strictEqual(r.ratio,    1);
+        assert.strictEqual(r.ratio, 1);
     });
 
     it('not detected for 2-in / 1-out (ratio 2.0, below threshold)', () => {
@@ -88,34 +88,34 @@ describe('consolidation — non-detection', () => {
 describe('consolidation — detection', () => {
     it('detected for 3-in / 1-out (ratio 3.0, at threshold)', () => {
         const tx = { vin: makeVin(3), vout: makeVout(1) };
-        const r  = consolidation.analyze(tx);
-        assert.strictEqual(r.detected,      true);
-        assert.strictEqual(r.input_count,   3);
-        assert.strictEqual(r.output_count,  1);
-        assert.strictEqual(r.ratio,         3);
+        const r = consolidation.analyze(tx);
+        assert.strictEqual(r.detected, true);
+        assert.strictEqual(r.input_count, 3);
+        assert.strictEqual(r.output_count, 1);
+        assert.strictEqual(r.ratio, 3);
     });
 
     it('detected for 6-in / 1-out (ratio 6.0)', () => {
         const tx = { vin: makeVin(6), vout: makeVout(1) };
-        const r  = consolidation.analyze(tx);
+        const r = consolidation.analyze(tx);
         assert.strictEqual(r.detected, true);
-        assert.strictEqual(r.ratio,    6);
+        assert.strictEqual(r.ratio, 6);
     });
 
     it('detected for 9-in / 3-out (ratio 3.0)', () => {
         const tx = { vin: makeVin(9), vout: makeVout(3) };
-        const r  = consolidation.analyze(tx);
-        assert.strictEqual(r.detected,     true);
-        assert.strictEqual(r.input_count,  9);
+        const r = consolidation.analyze(tx);
+        assert.strictEqual(r.detected, true);
+        assert.strictEqual(r.input_count, 9);
         assert.strictEqual(r.output_count, 3);
-        assert.strictEqual(r.ratio,        3);
+        assert.strictEqual(r.ratio, 3);
     });
 
     it('detected for 10-in / 2-out (ratio 5.0)', () => {
         const tx = { vin: makeVin(10), vout: makeVout(2) };
-        const r  = consolidation.analyze(tx);
+        const r = consolidation.analyze(tx);
         assert.strictEqual(r.detected, true);
-        assert.strictEqual(r.ratio,    5);
+        assert.strictEqual(r.ratio, 5);
     });
 });
 
@@ -125,7 +125,7 @@ describe('consolidation — ratio precision', () => {
     it('ratio is rounded to 2 decimal places', () => {
         // 10-in / 3-out = 3.333... → 3.33
         const tx = { vin: makeVin(10), vout: makeVout(3) };
-        const r  = consolidation.analyze(tx);
+        const r = consolidation.analyze(tx);
         assert.strictEqual(r.ratio, 3.33);
     });
 });
