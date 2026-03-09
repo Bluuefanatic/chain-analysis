@@ -75,7 +75,7 @@ function getVirtualSize(tx) {
     }
 
     const baseSize = tx.size - witnessBytes;
-    const weight   = baseSize * 4 + witnessBytes;
+    const weight = baseSize * 4 + witnessBytes;
     return Math.ceil(weight / 4);
 }
 
@@ -144,9 +144,9 @@ export function computeFeeStats(txEntries) {
     for (const { tx, prevouts } of txEntries) {
         if (isCoinbase(tx)) continue;
 
-        const inputTotal  = prevouts.reduce((sum, p) => sum + p.value_sats, 0);
+        const inputTotal = prevouts.reduce((sum, p) => sum + p.value_sats, 0);
         const outputTotal = tx.vout.reduce((sum, o) => sum + o.value_sats, 0);
-        const fee         = inputTotal - outputTotal;
+        const fee = inputTotal - outputTotal;
 
         if (fee < 0) {
             throw new Error(
@@ -155,7 +155,7 @@ export function computeFeeStats(txEntries) {
             );
         }
 
-        const vsize   = getVirtualSize(tx);
+        const vsize = getVirtualSize(tx);
         feeRates.push(fee / vsize);
     }
 
@@ -165,10 +165,10 @@ export function computeFeeStats(txEntries) {
 
     feeRates.sort((a, b) => a - b);
 
-    const min_sat_vb    = feeRates[0];
-    const max_sat_vb    = feeRates[feeRates.length - 1];
+    const min_sat_vb = feeRates[0];
+    const max_sat_vb = feeRates[feeRates.length - 1];
     const median_sat_vb = medianOfSorted(feeRates);
-    const mean_sat_vb   = feeRates.reduce((s, r) => s + r, 0) / feeRates.length;
+    const mean_sat_vb = feeRates.reduce((s, r) => s + r, 0) / feeRates.length;
 
     return { min_sat_vb, max_sat_vb, median_sat_vb, mean_sat_vb };
 }
