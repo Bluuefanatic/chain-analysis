@@ -21,11 +21,11 @@ import { changeDetection } from './changeDetection.js';
 // ── Script helpers ─────────────────────────────────────────────────────────────
 
 const P2WPKH = (n = 0xaa) => '0014' + n.toString(16).padStart(2, '0').repeat(20);
-const P2PKH  = (n = 0xbb) => '76a914' + n.toString(16).padStart(2, '0').repeat(20) + '88ac';
-const P2TR   = (n = 0xcc) => '5120' + n.toString(16).padStart(2, '0').repeat(32);
-const OP_RETURN_SCRIPT   = '6a0b68656c6c6f20776f726c64';
+const P2PKH = (n = 0xbb) => '76a914' + n.toString(16).padStart(2, '0').repeat(20) + '88ac';
+const P2TR = (n = 0xcc) => '5120' + n.toString(16).padStart(2, '0').repeat(32);
+const OP_RETURN_SCRIPT = '6a0b68656c6c6f20776f726c64';
 
-const NULL_TXID  = '0'.repeat(64);
+const NULL_TXID = '0'.repeat(64);
 const DUMMY_TXID = 'ab'.repeat(32);
 
 // ── Fixture builders ───────────────────────────────────────────────────────────
@@ -64,7 +64,7 @@ describe('changeDetection — OP_RETURN exclusion', () => {
         // Only 1 real candidate remains → not enough to determine change
         const tx = makeTx([
             { value_sats: 1_000_000, scriptPubKey: P2WPKH() },
-            { value_sats:       100, scriptPubKey: OP_RETURN_SCRIPT },
+            { value_sats: 100, scriptPubKey: OP_RETURN_SCRIPT },
         ]);
         const r = changeDetection.analyze(tx);
         assert.strictEqual(r.detected, false);
@@ -92,10 +92,10 @@ describe('changeDetection — non_round_value signal', () => {
     it('detects change at index 1 when only vout[1] is non-round', () => {
         const tx = makeTx([
             { value_sats: 1_000_000, scriptPubKey: P2WPKH(0xaa) }, // round
-            { value_sats:   123_456, scriptPubKey: P2WPKH(0xbb) }, // non-round
+            { value_sats: 123_456, scriptPubKey: P2WPKH(0xbb) }, // non-round
         ]);
         const r = changeDetection.analyze(tx);
-        assert.strictEqual(r.detected,            true);
+        assert.strictEqual(r.detected, true);
         assert.strictEqual(r.likely_change_index, 1);
         assert.match(r.method, /non_round_value/);
         assert.ok(r.confidence > 0 && r.confidence <= 1);
@@ -103,11 +103,11 @@ describe('changeDetection — non_round_value signal', () => {
 
     it('detects change at index 0 when only vout[0] is non-round', () => {
         const tx = makeTx([
-            { value_sats:   789_012, scriptPubKey: P2WPKH(0xaa) }, // non-round
+            { value_sats: 789_012, scriptPubKey: P2WPKH(0xaa) }, // non-round
             { value_sats: 5_000_000, scriptPubKey: P2WPKH(0xbb) }, // round
         ]);
         const r = changeDetection.analyze(tx);
-        assert.strictEqual(r.detected,            true);
+        assert.strictEqual(r.detected, true);
         assert.strictEqual(r.likely_change_index, 0);
         assert.match(r.method, /non_round_value/);
     });
@@ -121,7 +121,7 @@ describe('changeDetection — non_round_value signal', () => {
         // But smaller_value can break the tie
         const r = changeDetection.analyze(tx);
         // The smaller value (123_456) gets smaller_value bonus → index 0 wins
-        assert.strictEqual(r.detected,            true);
+        assert.strictEqual(r.detected, true);
         assert.strictEqual(r.likely_change_index, 0);
     });
 
@@ -133,7 +133,7 @@ describe('changeDetection — non_round_value signal', () => {
         const r = changeDetection.analyze(tx);
         // Both round → non_round_value silent for both; no prevouts → script_type_match silent;
         // smaller_value fires for index 0 alone → detected
-        assert.strictEqual(r.detected,            true);
+        assert.strictEqual(r.detected, true);
         assert.strictEqual(r.likely_change_index, 0);
         assert.match(r.method, /smaller_value/);
     });
@@ -151,13 +151,13 @@ describe('changeDetection — script_type_match signal', () => {
         // scores[1] = non_round_value(1.0)                         = 1.0
         // Winner: index 0
         const tx = makeTx([
-            { value_sats:   500_000, scriptPubKey: P2WPKH(0xaa) }, // P2WPKH, round, smaller
-            { value_sats: 1_234_567, scriptPubKey: P2PKH(0xbb)  }, // P2PKH,  non-round, larger
+            { value_sats: 500_000, scriptPubKey: P2WPKH(0xaa) }, // P2WPKH, round, smaller
+            { value_sats: 1_234_567, scriptPubKey: P2PKH(0xbb) }, // P2PKH,  non-round, larger
         ]);
         const context = { prevouts: [{ script_pubkey: P2WPKH(0xcc) }] };
 
         const r = changeDetection.analyze(tx, context);
-        assert.strictEqual(r.detected,            true);
+        assert.strictEqual(r.detected, true);
         assert.strictEqual(r.likely_change_index, 0);
         assert.match(r.method, /script_type_match/);
     });
@@ -169,12 +169,12 @@ describe('changeDetection — script_type_match signal', () => {
         // scores[1] = script_type_match(1.0) + non_round_value(1.0) = 2.0
         // Winner: index 1
         const tx = makeTx([
-            { value_sats:   100_000, scriptPubKey: P2WPKH(0xaa) }, // P2WPKH, round, smaller
-            { value_sats:   123_456, scriptPubKey: P2WPKH(0xbb) }, // P2WPKH, non-round, larger
+            { value_sats: 100_000, scriptPubKey: P2WPKH(0xaa) }, // P2WPKH, round, smaller
+            { value_sats: 123_456, scriptPubKey: P2WPKH(0xbb) }, // P2WPKH, non-round, larger
         ]);
         const context = { prevouts: [{ script_pubkey: P2WPKH(0xcc) }] };
         const r = changeDetection.analyze(tx, context);
-        assert.strictEqual(r.detected,            true);
+        assert.strictEqual(r.detected, true);
         assert.strictEqual(r.likely_change_index, 1);
     });
 
@@ -182,10 +182,10 @@ describe('changeDetection — script_type_match signal', () => {
         // No prevouts → only non_round_value and smaller_value fire
         const tx = makeTx([
             { value_sats: 1_000_000, scriptPubKey: P2WPKH(0xaa) },
-            { value_sats:   333_333, scriptPubKey: P2PKH(0xbb)  },
+            { value_sats: 333_333, scriptPubKey: P2PKH(0xbb) },
         ]);
         const r = changeDetection.analyze(tx);
-        assert.strictEqual(r.detected,            true);
+        assert.strictEqual(r.detected, true);
         assert.strictEqual(r.likely_change_index, 1); // non-round + smaller
     });
 });
@@ -196,7 +196,7 @@ describe('changeDetection — smaller_value signal', () => {
     it('does not fire when both outputs have equal value', () => {
         const tx = makeTx([
             { value_sats: 500_000, scriptPubKey: P2WPKH(0xaa) },
-            { value_sats: 500_000, scriptPubKey: P2PKH(0xbb)  },
+            { value_sats: 500_000, scriptPubKey: P2PKH(0xbb) },
         ]);
         // equal values: smaller_value silent; no other signal → not detected
         const r = changeDetection.analyze(tx);
@@ -206,13 +206,13 @@ describe('changeDetection — smaller_value signal', () => {
     it('only fires for the two-output case', () => {
         // 3 outputs: smaller_value does not run; only non_round_value and script_type_match
         const tx = makeTx([
-            { value_sats:   100_000, scriptPubKey: P2WPKH(0xaa) }, // round
+            { value_sats: 100_000, scriptPubKey: P2WPKH(0xaa) }, // round
             { value_sats: 1_000_000, scriptPubKey: P2WPKH(0xbb) }, // round
-            { value_sats:   123_456, scriptPubKey: P2WPKH(0xcc) }, // non-round
+            { value_sats: 123_456, scriptPubKey: P2WPKH(0xcc) }, // non-round
         ]);
         const r = changeDetection.analyze(tx);
         // Only non_round_value fires; index 2 wins unambiguously
-        assert.strictEqual(r.detected,            true);
+        assert.strictEqual(r.detected, true);
         assert.strictEqual(r.likely_change_index, 2);
         assert.match(r.method, /non_round_value/);
         assert.ok(!(r.method.includes('smaller_value')));
@@ -225,29 +225,29 @@ describe('changeDetection — output format', () => {
     it('detected result has all required fields', () => {
         const tx = makeTx([
             { value_sats: 1_000_000, scriptPubKey: P2WPKH(0xaa) },
-            { value_sats:   123_456, scriptPubKey: P2WPKH(0xbb) },
+            { value_sats: 123_456, scriptPubKey: P2WPKH(0xbb) },
         ]);
         const r = changeDetection.analyze(tx);
-        assert.strictEqual(r.detected,                        true);
-        assert.strictEqual(typeof r.likely_change_index,      'number');
-        assert.strictEqual(typeof r.method,                   'string');
-        assert.ok(r.method.length > 0,                        'method should not be empty');
-        assert.ok(typeof r.confidence === 'number',           'confidence should be a number');
-        assert.ok(r.confidence >= 0 && r.confidence <= 1,     'confidence should be in [0,1]');
+        assert.strictEqual(r.detected, true);
+        assert.strictEqual(typeof r.likely_change_index, 'number');
+        assert.strictEqual(typeof r.method, 'string');
+        assert.ok(r.method.length > 0, 'method should not be empty');
+        assert.ok(typeof r.confidence === 'number', 'confidence should be a number');
+        assert.ok(r.confidence >= 0 && r.confidence <= 1, 'confidence should be in [0,1]');
     });
 
     it('not-detected result has all required fields', () => {
         const r = changeDetection.analyze(makeTx([]));
-        assert.strictEqual(r.detected,            false);
+        assert.strictEqual(r.detected, false);
         assert.strictEqual(r.likely_change_index, null);
-        assert.strictEqual(typeof r.method,       'string');
-        assert.strictEqual(typeof r.confidence,   'number');
+        assert.strictEqual(typeof r.method, 'string');
+        assert.strictEqual(typeof r.confidence, 'number');
     });
 
     it('confidence is a number between 0 and 1 for a high-signal case', () => {
         const tx = makeTx([
             { value_sats: 1_000_000, scriptPubKey: P2WPKH(0xaa) },
-            { value_sats:   123_456, scriptPubKey: P2WPKH(0xbb) },
+            { value_sats: 123_456, scriptPubKey: P2WPKH(0xbb) },
         ]);
         const context = { prevouts: [{ script_pubkey: P2WPKH(0xcc) }] };
         const { confidence } = changeDetection.analyze(tx, context);
@@ -257,10 +257,10 @@ describe('changeDetection — output format', () => {
     it('P2TR outputs are detected as change candidates', () => {
         const tx = makeTx([
             { value_sats: 5_000_000, scriptPubKey: P2TR(0xaa) }, // round
-            { value_sats:   234_567, scriptPubKey: P2TR(0xbb) }, // non-round
+            { value_sats: 234_567, scriptPubKey: P2TR(0xbb) }, // non-round
         ]);
         const r = changeDetection.analyze(tx);
-        assert.strictEqual(r.detected,            true);
+        assert.strictEqual(r.detected, true);
         assert.strictEqual(r.likely_change_index, 1);
     });
 });
