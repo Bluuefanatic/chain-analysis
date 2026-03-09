@@ -70,14 +70,14 @@
  */
 
 import { detectScriptType } from '../analysis/scriptTypes.js';
-import { isCoinbase }       from './cioh.js';
+import { isCoinbase } from './cioh.js';
 
 // ── Signal weights ────────────────────────────────────────────────────────────
 
 const W_SCRIPT_MATCH = 1.0;
-const W_SMALLER      = 0.5;
-const W_NON_ROUND    = 1.0;
-const MAX_SCORE      = W_SCRIPT_MATCH + W_SMALLER + W_NON_ROUND; // 2.5
+const W_SMALLER = 0.5;
+const W_NON_ROUND = 1.0;
+const MAX_SCORE = W_SCRIPT_MATCH + W_SMALLER + W_NON_ROUND; // 2.5
 
 // Round-value thresholds (ascending order; first match wins)
 const ROUND_CADENCES = [10_000, 100_000, 1_000_000];
@@ -163,7 +163,7 @@ export const changeDetection = {
         if (candidates.length < 2) return notDetected;
 
         // Initialise per-output score accumulators
-        const scores  = new Array(candidates.length).fill(0);
+        const scores = new Array(candidates.length).fill(0);
         const signals = new Array(candidates.length).fill(null).map(() => new Set());
 
         // ── Signal 1: script-type match ───────────────────────────────────────
@@ -176,7 +176,7 @@ export const changeDetection = {
             for (let i = 0; i < candidates.length; i++) {
                 try {
                     if (detectScriptType(candidates[i].scriptPubKey) === inputType) {
-                        scores[i]  += W_SCRIPT_MATCH;
+                        scores[i] += W_SCRIPT_MATCH;
                         signals[i].add('script_type_match');
                     }
                 } catch { /* skip */ }
@@ -189,7 +189,7 @@ export const changeDetection = {
             const smallerIdx = candidates[0].value <= candidates[1].value ? 0 : 1;
             // Only award the point when values differ; equal outputs are ambiguous.
             if (candidates[0].value !== candidates[1].value) {
-                scores[smallerIdx]  += W_SMALLER;
+                scores[smallerIdx] += W_SMALLER;
                 signals[smallerIdx].add('smaller_value');
             }
         }
@@ -197,18 +197,18 @@ export const changeDetection = {
         // ── Signal 3: non-round value ─────────────────────────────────────────
         for (let i = 0; i < candidates.length; i++) {
             if (!isRoundValue(candidates[i].value)) {
-                scores[i]  += W_NON_ROUND;
+                scores[i] += W_NON_ROUND;
                 signals[i].add('non_round_value');
             }
         }
 
         // ── Select winner ─────────────────────────────────────────────────────
-        let bestIdx   = 0;
+        let bestIdx = 0;
         let bestScore = scores[0];
         for (let i = 1; i < scores.length; i++) {
             if (scores[i] > bestScore) {
                 bestScore = scores[i];
-                bestIdx   = i;
+                bestIdx = i;
             }
         }
 
@@ -220,10 +220,10 @@ export const changeDetection = {
         if (bestScore === secondBest || bestScore === 0) return notDetected;
 
         const confidence = Math.round((bestScore / MAX_SCORE) * 100) / 100;
-        const method     = [...signals[bestIdx]].join(',');
+        const method = [...signals[bestIdx]].join(',');
 
         return {
-            detected:            true,
+            detected: true,
             likely_change_index: candidates[bestIdx].index,
             method,
             confidence,
