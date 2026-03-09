@@ -38,11 +38,11 @@ import { computeFeeStats } from './feeCalculator.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const NULL_TXID         = '0'.repeat(64);
-const DUMMY_TXID        = 'ab'.repeat(32);
-const DUMMY_SCRIPT      = '76a914' + 'aa'.repeat(20) + '88ac';
+const NULL_TXID = '0'.repeat(64);
+const DUMMY_TXID = 'ab'.repeat(32);
+const DUMMY_SCRIPT = '76a914' + 'aa'.repeat(20) + '88ac';
 const SEGWIT_WITNESS_BYTES = 109; // see file header
-const SEG_TOTAL_SIZE    = 192;    // representative P2WPKH transaction wire size
+const SEG_TOTAL_SIZE = 192;    // representative P2WPKH transaction wire size
 
 // ── Fixture builders ──────────────────────────────────────────────────────────
 
@@ -57,18 +57,18 @@ const SEG_TOTAL_SIZE    = 192;    // representative P2WPKH transaction wire size
  */
 function makeLegacyEntry({ inputValues, outputValues, size }) {
     const tx = {
-        txid:     DUMMY_TXID,
-        version:  1,
-        vin:      inputValues.map((_, i) => ({
+        txid: DUMMY_TXID,
+        version: 1,
+        vin: inputValues.map((_, i) => ({
             prev_txid: DUMMY_TXID,
-            vout:      i,
+            vout: i,
             scriptSig: 'deadbeef',
-            sequence:  0xffffffff,
+            sequence: 0xffffffff,
         })),
-        vout:     outputValues.map(value_sats => ({ value_sats, scriptPubKey: DUMMY_SCRIPT })),
+        vout: outputValues.map(value_sats => ({ value_sats, scriptPubKey: DUMMY_SCRIPT })),
         locktime: 0,
         size,
-        segwit:   false,
+        segwit: false,
     };
     const prevouts = inputValues.map(value_sats => ({ value_sats, script_pubkey: '' }));
     return { tx, prevouts };
@@ -85,23 +85,23 @@ function makeLegacyEntry({ inputValues, outputValues, size }) {
  * @returns {{ tx: object, prevouts: object[] }}
  */
 function makeSegwitEntry({ inputValue, outputValue, size }) {
-    const sig71  = '31'.repeat(71); // 71 dummy bytes as hex (142 hex chars)
-    const pub33  = 'ab'.repeat(33); // 33 dummy bytes as hex (66 hex chars)
+    const sig71 = '31'.repeat(71); // 71 dummy bytes as hex (142 hex chars)
+    const pub33 = 'ab'.repeat(33); // 33 dummy bytes as hex (66 hex chars)
 
     const tx = {
-        txid:     DUMMY_TXID,
-        version:  1,
-        vin:      [{
+        txid: DUMMY_TXID,
+        version: 1,
+        vin: [{
             prev_txid: DUMMY_TXID,
-            vout:      0,
+            vout: 0,
             scriptSig: '',
-            sequence:  0xffffffff,
-            witness:   [sig71, pub33],
+            sequence: 0xffffffff,
+            witness: [sig71, pub33],
         }],
-        vout:     [{ value_sats: outputValue, scriptPubKey: '0014' + 'aa'.repeat(20) }],
+        vout: [{ value_sats: outputValue, scriptPubKey: '0014' + 'aa'.repeat(20) }],
         locktime: 0,
         size,
-        segwit:   true,
+        segwit: true,
     };
     const prevouts = [{ value_sats: inputValue, script_pubkey: '' }];
     return { tx, prevouts };
@@ -110,18 +110,18 @@ function makeSegwitEntry({ inputValue, outputValue, size }) {
 /** A well-formed coinbase entry (should be ignored by computeFeeStats). */
 const COINBASE_ENTRY = {
     tx: {
-        txid:     'cc'.repeat(32),
-        version:  1,
-        vin:      [{
+        txid: 'cc'.repeat(32),
+        version: 1,
+        vin: [{
             prev_txid: NULL_TXID,
-            vout:      0xffffffff,
+            vout: 0xffffffff,
             scriptSig: 'aabbcc',
-            sequence:  0xffffffff,
+            sequence: 0xffffffff,
         }],
-        vout:     [{ value_sats: 625_000_000, scriptPubKey: DUMMY_SCRIPT }],
+        vout: [{ value_sats: 625_000_000, scriptPubKey: DUMMY_SCRIPT }],
         locktime: 0,
-        size:     130,
-        segwit:   false,
+        size: 130,
+        segwit: false,
     },
     prevouts: [], // coinbase has no prevouts
 };
@@ -148,10 +148,10 @@ describe('computeFeeStats — coinbase handling', () => {
         const regular = makeLegacyEntry({ inputValues: [11_000], outputValues: [10_000], size: 100 });
         const stats = computeFeeStats([COINBASE_ENTRY, regular]);
 
-        assert.strictEqual(stats.min_sat_vb,    10);
-        assert.strictEqual(stats.max_sat_vb,    10);
+        assert.strictEqual(stats.min_sat_vb, 10);
+        assert.strictEqual(stats.max_sat_vb, 10);
         assert.strictEqual(stats.median_sat_vb, 10);
-        assert.strictEqual(stats.mean_sat_vb,   10);
+        assert.strictEqual(stats.mean_sat_vb, 10);
     });
 });
 
@@ -246,9 +246,9 @@ describe('computeFeeStats — SegWit virtual size (P2WPKH)', () => {
     //
     // fee = 1_110 sat  →  fee_rate = 1_110 / 111 = 10 sat/vbyte
     const entry = makeSegwitEntry({
-        inputValue:  1_109_000 + 1_110, // = 1_110_110
+        inputValue: 1_109_000 + 1_110, // = 1_110_110
         outputValue: 1_109_000,
-        size:        SEG_TOTAL_SIZE,
+        size: SEG_TOTAL_SIZE,
     });
 
     // Expected vsize is 111, not 192 (full wire size)
@@ -271,10 +271,10 @@ describe('computeFeeStats — zero-fee transaction', () => {
         // output value equals input value → fee = 0
         const entry = makeLegacyEntry({ inputValues: [50_000], outputValues: [50_000], size: 200 });
         const stats = computeFeeStats([entry]);
-        assert.strictEqual(stats.min_sat_vb,    0);
-        assert.strictEqual(stats.max_sat_vb,    0);
+        assert.strictEqual(stats.min_sat_vb, 0);
+        assert.strictEqual(stats.max_sat_vb, 0);
         assert.strictEqual(stats.median_sat_vb, 0);
-        assert.strictEqual(stats.mean_sat_vb,   0);
+        assert.strictEqual(stats.mean_sat_vb, 0);
     });
 });
 
