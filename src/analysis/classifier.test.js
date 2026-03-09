@@ -13,18 +13,18 @@ import { classifyTransaction } from './classifier.js';
 
 // ── Script helpers ─────────────────────────────────────────────────────────────
 
-const NULL_TXID  = '0'.repeat(64);
+const NULL_TXID = '0'.repeat(64);
 const DUMMY_TXID = 'ab'.repeat(32);
 
-const SPK  = (n) => '0014' + n.toString(16).padStart(2, '0').repeat(20); // P2WPKH
+const SPK = (n) => '0014' + n.toString(16).padStart(2, '0').repeat(20); // P2WPKH
 const OP_RETURN_SPK = '6a0b68656c6c6f20776f726c64';
 
 function makeVin(count, opts = {}) {
     return Array.from({ length: count }, (_, i) => ({
         prev_txid: opts.nullHash ? NULL_TXID : DUMMY_TXID,
-        vout:      opts.nullHash ? 0xffffffff : i,
+        vout: opts.nullHash ? 0xffffffff : i,
         scriptSig: '',
-        sequence:  0xffffffff,
+        sequence: 0xffffffff,
     }));
 }
 
@@ -34,18 +34,18 @@ function makeVout(values, scriptFn = (i) => SPK(i + 1)) {
 
 function makeTx(inputCount, outputValues, opts = {}) {
     return {
-        txid:     DUMMY_TXID,
-        version:  1,
-        vin:      opts.vin ?? makeVin(inputCount),
-        vout:     makeVout(outputValues, opts.scriptFn),
+        txid: DUMMY_TXID,
+        version: 1,
+        vin: opts.vin ?? makeVin(inputCount),
+        vout: makeVout(outputValues, opts.scriptFn),
         locktime: 0,
-        size:     200,
-        segwit:   false,
+        size: 200,
+        segwit: false,
     };
 }
 
 const COINBASE_TX = {
-    vin:  makeVin(1, { nullHash: true }),
+    vin: makeVin(1, { nullHash: true }),
     vout: makeVout([625_000_000]),
 };
 
@@ -55,12 +55,12 @@ describe('classifyTransaction — result shape', () => {
     it('always returns classification and heuristics keys', () => {
         const r = classifyTransaction(makeTx(1, [500_000, 123_456]));
         assert.ok('classification' in r, 'missing classification');
-        assert.ok('heuristics'     in r, 'missing heuristics');
+        assert.ok('heuristics' in r, 'missing heuristics');
     });
 
     it('heuristics object contains coinjoin, consolidation, address_reuse keys', () => {
         const r = classifyTransaction(makeTx(1, [500_000, 123_456]));
-        assert.ok('coinjoin'      in r.heuristics);
+        assert.ok('coinjoin' in r.heuristics);
         assert.ok('consolidation' in r.heuristics);
         assert.ok('address_reuse' in r.heuristics);
     });
@@ -149,11 +149,11 @@ describe('classifyTransaction — self_transfer', () => {
         // Outputs go back to the same two addresses as the inputs
         const tx = {
             txid: DUMMY_TXID, version: 1,
-            vin:  [
+            vin: [
                 { prev_txid: DUMMY_TXID, vout: 0, scriptSig: '', sequence: 0xffffffff },
                 { prev_txid: DUMMY_TXID, vout: 1, scriptSig: '', sequence: 0xffffffff },
             ],
-            vout:     [
+            vout: [
                 { value_sats: 400_000, scriptPubKey: A },
                 { value_sats: 500_000, scriptPubKey: B },
             ],
@@ -185,9 +185,9 @@ describe('classifyTransaction — self_transfer', () => {
         const A = SPK(0xaa);
         const tx = {
             txid: DUMMY_TXID, version: 1,
-            vin:  [{ prev_txid: DUMMY_TXID, vout: 0, scriptSig: '', sequence: 0xffffffff }],
+            vin: [{ prev_txid: DUMMY_TXID, vout: 0, scriptSig: '', sequence: 0xffffffff }],
             vout: [
-                { value_sats: 0,       scriptPubKey: OP_RETURN_SPK },
+                { value_sats: 0, scriptPubKey: OP_RETURN_SPK },
                 { value_sats: 999_000, scriptPubKey: A },
             ],
             locktime: 0, size: 150, segwit: false,
