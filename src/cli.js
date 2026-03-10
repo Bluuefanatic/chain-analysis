@@ -29,19 +29,19 @@ import path from 'node:path';
 import process from 'node:process';
 
 import { parseBlockFile, loadXorKey } from './parser/blockParser.js';
-import { decodeTransaction }          from './parser/transactionParser.js';
+import { decodeTransaction } from './parser/transactionParser.js';
 import { parseRevFile, resolvePrevouts } from './parser/revParser.js';
 
-import { isCoinbase }          from './heuristics/cioh.js';
-import { cioh }                from './heuristics/cioh.js';
-import { changeDetection }     from './heuristics/changeDetection.js';
-import { coinjoin }            from './heuristics/coinjoin.js';
-import { consolidation }       from './heuristics/consolidation.js';
-import { addressReuse }        from './heuristics/addressReuse.js';
-import { roundNumberPayment }  from './heuristics/roundNumberPayment.js';
+import { isCoinbase } from './heuristics/cioh.js';
+import { cioh } from './heuristics/cioh.js';
+import { changeDetection } from './heuristics/changeDetection.js';
+import { coinjoin } from './heuristics/coinjoin.js';
+import { consolidation } from './heuristics/consolidation.js';
+import { addressReuse } from './heuristics/addressReuse.js';
+import { roundNumberPayment } from './heuristics/roundNumberPayment.js';
 
-import { classifyTransaction }    from './analysis/classifier.js';
-import { generateJsonReport }     from './reports/jsonReport.js';
+import { classifyTransaction } from './analysis/classifier.js';
+import { generateJsonReport } from './reports/jsonReport.js';
 import { generateMarkdownReport } from './reports/markdownReport.js';
 
 // ── Error helpers ─────────────────────────────────────────────────────────────
@@ -171,7 +171,7 @@ function processBlock(rawBlock, revBlock) {
                 } catch {
                     // Fall back to empty prevouts — fee stats will skip this tx
                     prevouts = undoCoins.map(c => ({
-                        value_sats:   c.value_sats,
+                        value_sats: c.value_sats,
                         script_pubkey: c.script_pubkey,
                     }));
                 }
@@ -264,7 +264,7 @@ async function main() {
 
     // ── 5 & 6. Generate reports ───────────────────────────────────────────────
     const filename = path.basename(blkPath);
-    const outDir   = path.join(process.cwd(), 'out');
+    const outDir = path.join(process.cwd(), 'out');
 
     try {
         await generateJsonReport(blkPath, blocksData, { outDir });
