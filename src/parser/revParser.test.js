@@ -115,16 +115,6 @@ function makeCompressedPkScript(type, xCoordHex) {
 }
 
 /**
- * Non-special compressed script: CVarInt(script_len + 6) + raw script bytes.
- * Used for P2WPKH, P2WSH, P2TR, and any other non-standard script type.
- */
-function makeRawScript(scriptHex) {
-    const raw = Buffer.from(scriptHex, 'hex');
-    const lenCode = raw.length + 6;
-    return Buffer.concat([encodeCVarInt(lenCode), raw]);
-}
-
-/**
  * Build a full coin entry: [CVarInt(code)] [CVarInt(compressed_amount)] [script_bytes].
  *
  * @param {{
@@ -137,16 +127,64 @@ function makeRawScript(scriptHex) {
  */
 function makeCoin({ height, is_coinbase = false, value_sats, scriptBuf }) {
     const code = (height * 2) + (is_coinbase ? 1 : 0);
-    return Buffer.concat([
-        encodeCVarInt(code),
-        encodeCVarInt(compressAmount(value_sats)),
-        scriptBuf,
-    ]);
+    const parts = [encodeCVarInt(code)];
+    // TxInUndoFormatter compatibility: dummy version byte (always 0x00) present
+    // whenever height > 0.  See undo.h TxInUndoFormatter::Ser.
+    if (height > 0) {
+        parts.push(encodeCVarInt(0));
+    }
+    parts.push(encodeCVarInt(compressAmount(value_sats)));
+    parts.push(scriptBuf);
+    return Buffer.concat(parts);
 }
 
 /**
- * Serialize a CBlockUndo: CVarInt(txCount) then for each tx:
- * CVarInt(inputCount) + coin entries.
+ * Encode a non-negative integer as a Bitcoin CompactSize varint.
+ * This is used for std::vector counts (txCount, inputCount) in CBlockUndo
+ * serialization — Bitcoin Core uses WriteCompactSize for these fields.
+ *
+ * @param {number} v
+ * @returns {Buffer}
+ */
+function encodeCompactSize(v) {
+    if (v < 0xfd) {
+        return Buffer.from([v]);
+    }
+    if (v <= 0xffff) {
+        const b = Buffer.allocUnsafe(3);
+        b[0] = 0xfd;
+        b.writeUInt16LE(v, 1);
+        return b;
+    }
+    if (v <= 0xffffffff) {
+        const b = Buffer.allocUnsafe(5);
+        b[0] = 0xfe;
+        b.writeUInt32LE(v, 1);
+        return b;
+    }
+    const b = Buffer.allocUnsafe(9);
+    b[0] = 0xff;
+    b.writeBigUInt64LE(BigInt(v), 1);
+    return b;
+}
+
+/**
+ * Non-special compressed script: CVarInt(script_len + 6) + raw script bytes.
+ * Bitcoin Core uses VARINT (CVarInt) for the ScriptCompression nSize field.
+ * See: compressor.h ScriptCompression::Ser/Unser.
+ * Used for P2WPKH, P2WSH, P2TR, and any other non-standard script type.
+ */
+function makeRawScript(scriptHex) {
+    const raw = Buffer.from(scriptHex, 'hex');
+    const lenCode = raw.length + 6;
+    // CVarInt (Bitcoin Core VARINT), NOT CompactSize (P2P wire format)
+    return Buffer.concat([encodeCVarInt(lenCode), raw]);
+}
+
+/**
+ * Serialize a CBlockUndo: CompactSize(txCount) then for each tx:
+ * CompactSize(inputCount) + coin entries.
+ * Bitcoin Core uses WriteCompactSize for std::vector size fields.
  *
  * @param {Array<Array<Buffer>>} txUndos
  *   Outer array: one element per non-coinbase transaction.
@@ -154,9 +192,9 @@ function makeCoin({ height, is_coinbase = false, value_sats, scriptBuf }) {
  * @returns {Buffer}
  */
 function makeBlockUndo(txUndos) {
-    const parts = [encodeCVarInt(txUndos.length)];
+    const parts = [encodeCompactSize(txUndos.length)];
     for (const coins of txUndos) {
-        parts.push(encodeCVarInt(coins.length));
+        parts.push(encodeCompactSize(coins.length));
         for (const coinBuf of coins) {
             parts.push(coinBuf);
         }
@@ -167,14 +205,16 @@ function makeBlockUndo(txUndos) {
 /**
  * Wrap a CBlockUndo buffer in the rev.dat record envelope:
  * [magic 4B][size 4B][blockUndoBuf][checksum 32B].
- * size = blockUndoBuf.length + 32 (checksum counted in size).
+ * size = blockUndoBuf.length ONLY (checksum is NOT counted, it follows separately).
+ * This matches the real Bitcoin Core format where the size field holds only the
+ * CBlockUndo byte count; the 32-byte checksum is appended after the data.
  *
  * @param {Buffer} blockUndoBuf
  * @returns {Buffer}
  */
 function makeRevRecord(blockUndoBuf) {
     const checksum = Buffer.alloc(32); // 32 zero bytes — dummy for tests
-    const size = blockUndoBuf.length + 32;
+    const size = blockUndoBuf.length; // size does NOT include checksum
     const header = Buffer.allocUnsafe(8);
     header.writeUInt32LE(0xd9b4bef9, 0); // mainnet magic
     header.writeUInt32LE(size, 4);
@@ -345,7 +385,7 @@ describe('decompressScript', () => {
         const scriptBuf = makeRawScript(scriptHex);
         const { scriptPubKey, size } = decompressScript(scriptBuf, 0);
         assert.strictEqual(scriptPubKey, scriptHex);
-        // CVarInt(22+6=28) is 1 byte, then 22 bytes of script
+        // CompactSize(22+6=28) is 1 byte (28 < 253), then 22 bytes of script
         assert.strictEqual(size, 1 + 22);
     });
 
@@ -355,7 +395,7 @@ describe('decompressScript', () => {
         const scriptBuf = makeRawScript(scriptHex);
         const { scriptPubKey, size } = decompressScript(scriptBuf, 0);
         assert.strictEqual(scriptPubKey, scriptHex);
-        // CVarInt(34+6=40) is 1 byte, then 34 bytes
+        // CompactSize(34+6=40) is 1 byte (40 < 253), then 34 bytes
         assert.strictEqual(size, 1 + 34);
     });
 
@@ -363,16 +403,17 @@ describe('decompressScript', () => {
         const scriptBuf = makeRawScript('');
         const { scriptPubKey, size } = decompressScript(scriptBuf, 0);
         assert.strictEqual(scriptPubKey, '');
-        assert.strictEqual(size, 1); // CVarInt(6) = 0x06, 0 bytes follow
+        assert.strictEqual(size, 1); // CompactSize(6) = 0x06, 0 bytes follow
     });
 
-    it('decodes a long non-special script requiring multi-byte CVarInt (≥122 bytes)', () => {
-        // A 122-byte script → CVarInt(122+6=128) → 2 bytes
-        const hex = '51'.repeat(122);
+    it('decodes a long non-special script requiring multi-byte CVarInt (≥247 bytes)', () => {
+        // A 247-byte script → CVarInt(247+6=253) → 2 bytes [0x81, 0x7d]
+        // CVarInt(253): 253 > 127 so multi-byte: [253 & 0x7f | 0x80, (253>>7)-1] = [0x81, 0x7d]
+        const hex = '51'.repeat(247);
         const buf = makeRawScript(hex);
         const { scriptPubKey, size } = decompressScript(buf, 0);
         assert.strictEqual(scriptPubKey, hex);
-        assert.strictEqual(size, 2 + 122); // 2-byte CVarInt + script
+        assert.strictEqual(size, 2 + 247); // 2-byte CVarInt(253) + script
     });
 
     it('correctly advances offset for back-to-back compressed scripts', () => {

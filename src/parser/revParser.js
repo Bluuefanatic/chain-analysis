@@ -13,8 +13,8 @@
  *   │ Field            │ Size / Notes                                      │
  *   ├──────────────────┼───────────────────────────────────────────────────┤
  *   │ Magic            │ 4 bytes  — 0xF9BEB4D9 (mainnet, stored LE)       │
- *   │ Size             │ 4 bytes  — LE uint32, CBlockUndo bytes + 32      │
- *   │ CBlockUndo data  │ Size-32 bytes — serialized block undo             │
+ *   │ Size             │ 4 bytes  — LE uint32, CBlockUndo bytes ONLY      │
+ *   │ CBlockUndo data  │ Size bytes — serialized block undo                │
  *   │ Checksum         │ 32 bytes — Hash256(block_hash ‖ CBlockUndo data) │
  *   └──────────────────┴───────────────────────────────────────────────────┘
  *
@@ -62,7 +62,15 @@
  *   0x04  P2PK (uncompressed, even y)  — followed by 32-byte x-coord
  *   0x05  P2PK (uncompressed, odd  y)  — followed by 32-byte x-coord
  * Non-special scripts use CVarInt(script_len + 6) followed by raw bytes.
- * Because the minimum CVarInt value for non-specials is 6, distinct from 0–5.
+ * nSpecialScripts = 6, so the minimum non-special nSize is 6.
+ * Bitcoin Core uses VARINT (CVarInt) — NOT WriteCompactSize — for this field.
+ * See: compressor.h ScriptCompression::Ser/Unser.
+ *
+ * TxInUndoFormatter (undo.h) format:
+ *   CVarInt(code = height*2 + is_coinbase)
+ *   If height > 0: single 0x00 byte (compatibility dummy, was tx version)
+ *   CVarInt(CompressAmount(value_sats))
+ *   ScriptCompression bytes
  *
  * Bitcoin Core v28+ XOR obfuscation
  * ───────────────────────────────────
@@ -235,19 +243,24 @@ export function decompressScript(buf, offset) {
         return { scriptPubKey: `21${prefix}${xCoord}ac`, size: 33 };
     }
 
-    // ── Non-special: CVarInt(script_len + 6) then raw script bytes ───────────
-    const { value, size: cvarSize } = readCVarInt(buf, offset);
+    // ── Non-special: CVarInt(script_len + nSpecialScripts) then raw script bytes
+    // Bitcoin Core uses VARINT (CVarInt, the internal variable-length integer)
+    // for the nSize field in ScriptCompression.  nSpecialScripts = 6, so for a
+    // script of length L the stored nSize = L + 6.  Values 0–5 are the special
+    // type codes; values ≥ 6 indicate a raw script of length nSize - 6.
+    // See: compressor.h ScriptCompression::Unser.
+    const { value, size: nSizeBytes } = readCVarInt(buf, offset);
     const scriptLen = value - 6;
 
     if (scriptLen < 0) {
         throw new RangeError(
-            `decompressScript: negative script length (CVarInt value=${value}) ` +
+            `decompressScript: negative script length (nSize=${value}) ` +
             `at offset ${offset}`
         );
     }
 
-    const raw = buf.subarray(offset + cvarSize, offset + cvarSize + scriptLen).toString('hex');
-    return { scriptPubKey: raw, size: cvarSize + scriptLen };
+    const raw = buf.subarray(offset + nSizeBytes, offset + nSizeBytes + scriptLen).toString('hex');
+    return { scriptPubKey: raw, size: nSizeBytes + scriptLen };
 }
 
 // ── Internal: XOR deobfuscation ───────────────────────────────────────────────
@@ -288,6 +301,16 @@ function parseCoin(buf, offset) {
 
     const height = code >>> 1;
     const is_coinbase = (code & 1) === 1;
+
+    // Compatibility dummy: when height > 0, Bitcoin Core writes a single 0x00
+    // byte (serialized as (unsigned char)0) after the code field.  This byte
+    // was originally used in older undo format to store the transaction version;
+    // it is now always 0 and must be consumed but ignored.
+    // See: undo.h TxInUndoFormatter::Unser ("nVersionDummy" field).
+    if (height > 0) {
+        const { size: dummySize } = readCVarInt(buf, offset);
+        offset += dummySize;
+    }
 
     // Compressed satoshi amount
     const { value: compressedAmt, size: amtSize } = readCVarInt(buf, offset);
@@ -358,12 +381,14 @@ export function parseRevFile(revPath, xorKey = null) {
         }
         pos += 4;
 
-        // size = CBlockUndo_bytes + 32 (the 32-byte checksum is included)
+        // size = CBlockUndo bytes ONLY; the 32-byte checksum is appended after
+        // and is NOT included in the size field.
         const size = buf.readUInt32LE(pos);
         pos += 4;
 
         const recordStart = pos;
-        const recordEnd = pos + size; // points past the checksum
+        // recordEnd points just past the 32-byte checksum that follows CBlockUndo data
+        const recordEnd = pos + size + 32;
 
         // ── CBlockUndo parsing ───────────────────────────────────────────────
         // vtxundo_count: number of non-coinbase transactions.
