@@ -211,7 +211,7 @@ function buildBlockSection(blockEntry, includeTransactions = false) {
                 txid: tx?.txid ?? '',
                 heuristics: heuristics ?? {},
                 classification: classification ?? 'unknown',
-              }))
+            }))
             : [],
     };
 }
