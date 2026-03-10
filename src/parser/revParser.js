@@ -87,6 +87,7 @@
  */
 
 import { readFileSync } from 'node:fs';
+import { readVarInt } from './blockParser.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -365,19 +366,24 @@ export function parseRevFile(revPath, xorKey = null) {
         const recordEnd = pos + size; // points past the checksum
 
         // ── CBlockUndo parsing ───────────────────────────────────────────────
-        // vtxundo_count: number of non-coinbase transactions
-        const { value: txCount, size: txCountSize } = readCVarInt(buf, pos);
+        // vtxundo_count: number of non-coinbase transactions.
+        // std::vector<CTxUndo> is serialised with WriteCompactSize — NOT CVarInt.
+        const { value: txCount, size: txCountSize } = readVarInt(buf, pos);
         pos += txCountSize;
 
         const txUndos = [];
 
-        for (let i = 0; i < txCount; i++) {
-            // Number of inputs in this non-coinbase transaction
-            const { value: inputCount, size: inputCountSize } = readCVarInt(buf, pos);
+        // recordEnd includes the 32-byte checksum; parse only up to recordEnd-32
+        const coinDataEnd = recordEnd - 32;
+
+        for (let i = 0; i < txCount && pos < coinDataEnd; i++) {
+            // Number of inputs in this non-coinbase transaction.
+            // std::vector<Coin> is also serialised with WriteCompactSize.
+            const { value: inputCount, size: inputCountSize } = readVarInt(buf, pos);
             pos += inputCountSize;
 
             const coins = [];
-            for (let j = 0; j < inputCount; j++) {
+            for (let j = 0; j < inputCount && pos < coinDataEnd; j++) {
                 const coin = parseCoin(buf, pos);
                 pos += coin.size;
                 coins.push({
