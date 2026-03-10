@@ -435,6 +435,7 @@ body {
     color: var(--text-muted);
     text-align: right;
     width: 28px;
+    -webkit-user-select: none;
     user-select: none;
 }
 
