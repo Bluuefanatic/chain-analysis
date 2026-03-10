@@ -15,7 +15,7 @@ set -euo pipefail
 # TODO: Replace the stub below with your web server start command.
 ###############################################################################
 
-PORT="${PORT:-3000}"
+export PORT="${PORT:-3000}"
 
 # Build the React front-end (outputs to src/web/dist/)
 npm run build:web
