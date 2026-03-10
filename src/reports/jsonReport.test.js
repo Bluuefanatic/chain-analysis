@@ -17,12 +17,12 @@ import { buildReport, generateJsonReport } from './jsonReport.js';
 
 // ── Test-data helpers ─────────────────────────────────────────────────────────
 
-const NULL_TXID  = '0'.repeat(64);
+const NULL_TXID = '0'.repeat(64);
 
 // P2WPKH scriptPubKey:  OP_0 OP_PUSH20 <20 bytes>
 const SPK_P2WPKH = (seed = 0xab) => '0014' + seed.toString(16).padStart(2, '0').repeat(20);
 // P2PKH scriptPubKey:   OP_DUP OP_HASH160 OP_DATA20 <20 bytes> OP_EQUALVERIFY OP_CHECKSIG
-const SPK_P2PKH  = (seed = 0xcd) =>
+const SPK_P2PKH = (seed = 0xcd) =>
     '76a914' + seed.toString(16).padStart(2, '0').repeat(20) + '88ac';
 // OP_RETURN
 const SPK_OP_RET = '6a0b68656c6c6f20776f726c64';
@@ -36,11 +36,11 @@ const ALL_H_IDS = [
 /** Build a heuristics object with all six entries set to not-detected. */
 function noopHeuristics(overrides = {}) {
     return {
-        cioh:                 { detected: false, input_count: 1, confidence: 0.9 },
-        change_detection:     { detected: false, likely_change_index: null, method: null, confidence: 0 },
-        coinjoin:             { detected: false, equal_output_count: 0, denomination_sats: 0 },
-        consolidation:        { detected: false, input_count: 1, output_count: 1, ratio: 1 },
-        address_reuse:        { detected: false, reused_indices: [] },
+        cioh: { detected: false, input_count: 1, confidence: 0.9 },
+        change_detection: { detected: false, likely_change_index: null, method: null, confidence: 0 },
+        coinjoin: { detected: false, equal_output_count: 0, denomination_sats: 0 },
+        consolidation: { detected: false, input_count: 1, output_count: 1, ratio: 1 },
+        address_reuse: { detected: false, reused_indices: [] },
         round_number_payment: { detected: false, payment_indices: [], cadence_sats: 0 },
         ...overrides,
     };
@@ -84,23 +84,23 @@ function makeCoinbaseTx(txid = '00'.repeat(32)) {
 /** Build a prevout array matching a non-coinbase tx's input count. */
 function makePrevouts(count, valueEach = 200_000) {
     return Array.from({ length: count }, () => ({
-        value_sats:   valueEach,
+        value_sats: valueEach,
         script_pubkey: SPK_P2WPKH(0xaa),
     }));
 }
 
 /** Build a TxEntry (the element of BlockEntry.transactions). */
 function makeTxEntry({
-    txid     = 'aa'.repeat(32),
-    inputs   = 1,
-    values   = [100_000, 50_000],
+    txid = 'aa'.repeat(32),
+    inputs = 1,
+    values = [100_000, 50_000],
     prevoutValue = 200_000,
     heuristics = noopHeuristics(),
     classification = 'simple_payment',
 } = {}) {
     return {
-        tx:             makeTx({ txid, inputs, values }),
-        prevouts:       makePrevouts(inputs, prevoutValue),
+        tx: makeTx({ txid, inputs, values }),
+        prevouts: makePrevouts(inputs, prevoutValue),
         heuristics,
         classification,
     };
@@ -108,9 +108,9 @@ function makeTxEntry({
 
 /** Build a BlockEntry. */
 function makeBlock({
-    block_hash   = 'bb'.repeat(32),
+    block_hash = 'bb'.repeat(32),
     block_height = 800_000,
-    txEntries    = [makeTxEntry()],
+    txEntries = [makeTxEntry()],
 } = {}) {
     return { block_hash, block_height, transactions: txEntries };
 }
@@ -141,14 +141,14 @@ describe('buildReport — top-level structure', () => {
 describe('buildReport — file-level analysis_summary', () => {
     const b1 = makeBlock({
         block_hash: 'aa'.repeat(32),
-        txEntries:  [
+        txEntries: [
             makeTxEntry({ txid: '01'.repeat(32) }),
             makeTxEntry({ txid: '02'.repeat(32) }),
         ],
     });
     const b2 = makeBlock({
         block_hash: 'bb'.repeat(32),
-        txEntries:  [
+        txEntries: [
             makeTxEntry({ txid: '03'.repeat(32) }),
         ],
     });
@@ -254,9 +254,9 @@ describe('buildReport — per-transaction fields', () => {
     ]);
 
     const entry = makeTxEntry({
-        txid:           '1a'.repeat(32),
+        txid: '1a'.repeat(32),
         classification: 'simple_payment',
-        heuristics:     noopHeuristics(),
+        heuristics: noopHeuristics(),
     });
     const report = buildReport('blk.dat', [makeBlock({ txEntries: [entry] })]);
     const tx = report.blocks[0].transactions[0];
@@ -306,11 +306,13 @@ describe('buildReport — coinbase-only block (fee stats fallback)', () => {
     const coinbaseTx = makeCoinbaseTx();
     const block = makeBlock({
         txEntries: [{
-            tx:             coinbaseTx,
-            prevouts:       [],
-            heuristics:     { cioh: { detected: false }, change_detection: { detected: false },
-                              coinjoin: { detected: false }, consolidation: { detected: false },
-                              address_reuse: { detected: false }, round_number_payment: { detected: false } },
+            tx: coinbaseTx,
+            prevouts: [],
+            heuristics: {
+                cioh: { detected: false }, change_detection: { detected: false },
+                coinjoin: { detected: false }, consolidation: { detected: false },
+                address_reuse: { detected: false }, round_number_payment: { detected: false }
+            },
             classification: 'unknown',
         }],
     });
@@ -343,17 +345,17 @@ describe('buildReport — script_type_distribution counts', () => {
     const entry = {
         tx: {
             txid: '11'.repeat(32),
-            vin:  [{ prev_txid: 'ff'.repeat(32), vout: 0, scriptSig: '', sequence: 0xffffffff }],
+            vin: [{ prev_txid: 'ff'.repeat(32), vout: 0, scriptSig: '', sequence: 0xffffffff }],
             vout: [
                 { value_sats: 100_000, scriptPubKey: SPK_P2WPKH(0x01) },  // p2wpkh
-                { value_sats: 200_000, scriptPubKey: SPK_P2PKH(0x02)  },  // p2pkh
-                { value_sats: 0,       scriptPubKey: SPK_OP_RET        },  // op_return
+                { value_sats: 200_000, scriptPubKey: SPK_P2PKH(0x02) },  // p2pkh
+                { value_sats: 0, scriptPubKey: SPK_OP_RET },  // op_return
             ],
             size: 250,
             segwit: false,
         },
-        prevouts:       makePrevouts(1, 400_000),
-        heuristics:     noopHeuristics(),
+        prevouts: makePrevouts(1, 400_000),
+        heuristics: noopHeuristics(),
         classification: 'batch_payment',
     };
 
@@ -361,11 +363,11 @@ describe('buildReport — script_type_distribution counts', () => {
     const dist = report.analysis_summary.script_type_distribution;
 
     it('p2wpkh count is 1', () => assert.equal(dist.p2wpkh, 1));
-    it('p2pkh count is 1',  () => assert.equal(dist.p2pkh, 1));
+    it('p2pkh count is 1', () => assert.equal(dist.p2pkh, 1));
     it('op_return count is 1', () => assert.equal(dist.op_return, 1));
-    it('p2tr count is 0',   () => assert.equal(dist.p2tr, 0));
-    it('p2sh count is 0',   () => assert.equal(dist.p2sh, 0));
-    it('p2wsh count is 0',  () => assert.equal(dist.p2wsh, 0));
+    it('p2tr count is 0', () => assert.equal(dist.p2tr, 0));
+    it('p2sh count is 0', () => assert.equal(dist.p2sh, 0));
+    it('p2wsh count is 0', () => assert.equal(dist.p2wsh, 0));
     it('unknown count is 0', () => assert.equal(dist.unknown, 0));
 });
 
@@ -436,13 +438,13 @@ describe('generateJsonReport — file I/O', () => {
     it('creates the output directory if absent and writes valid JSON', async () => {
         const outDir = path.join(tmpDir, 'out1');
         const blkPath = path.join('/fake', 'blk04330.dat');
-        const report  = await generateJsonReport(blkPath, [makeBlock()], { outDir });
+        const report = await generateJsonReport(blkPath, [makeBlock()], { outDir });
 
         const outFile = path.join(outDir, 'blk04330.json');
-        const raw     = await fs.readFile(outFile, 'utf-8');
-        const parsed  = JSON.parse(raw);
+        const raw = await fs.readFile(outFile, 'utf-8');
+        const parsed = JSON.parse(raw);
 
-        assert.equal(parsed.ok,   true);
+        assert.equal(parsed.ok, true);
         assert.equal(parsed.file, 'blk04330.dat');
         assert.deepEqual(parsed, report);
     });
