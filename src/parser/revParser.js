@@ -61,10 +61,10 @@
  *   0x03  P2PK (compressed, prefix 03) — followed by 32-byte x-coord
  *   0x04  P2PK (uncompressed, even y)  — followed by 32-byte x-coord
  *   0x05  P2PK (uncompressed, odd  y)  — followed by 32-byte x-coord
- * Non-special scripts use CVarInt(script_len + 6) followed by raw bytes.
+ * Non-special scripts use CompactSize(script_len + 6) followed by raw bytes.
  * nSpecialScripts = 6, so the minimum non-special nSize is 6.
- * Bitcoin Core uses VARINT (CVarInt) — NOT WriteCompactSize — for this field.
- * See: compressor.h ScriptCompression::Ser/Unser.
+ * Bitcoin Core uses WriteCompactSize (P2P wire varint) — NOT CVarInt — for this field.
+ * See: compressor.h ScriptCompression::Ser/Unser (uses WriteCompactSize).
  *
  * TxInUndoFormatter (undo.h) format:
  *   CVarInt(code = height*2 + is_coinbase)

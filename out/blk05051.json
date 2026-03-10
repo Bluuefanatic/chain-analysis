@@ -25,9 +25,9 @@
     },
     "fee_rate_stats": {
       "min_sat_vb": 0,
-      "max_sat_vb": 178.728,
-      "median_sat_vb": 2.937,
-      "mean_sat_vb": 3.664
+      "max_sat_vb": 0,
+      "median_sat_vb": 0,
+      "mean_sat_vb": 0
     }
   },
   "blocks": [

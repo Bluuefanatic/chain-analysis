@@ -262,7 +262,7 @@ async function main() {
         // Sanity check: rev undo count must equal non-coinbase tx count.
         // If they differ, the rev file is misaligned with the blk file for this
         // block (known issue with some fixture snapshots).  Use empty txUndos so
-        // computeFeeStats skips these transactions rather than using wrong data.
+        // prevouts stay empty and fee stats fall back to zero via safeFeeStats.
         const expectedUndoCount = rawBlock.raw_transactions.length - 1;
         const safeRevBlock =
             revBlock.txUndos.length === expectedUndoCount

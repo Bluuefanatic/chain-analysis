@@ -169,16 +169,17 @@ function encodeCompactSize(v) {
 }
 
 /**
- * Non-special compressed script: CVarInt(script_len + 6) + raw script bytes.
- * Bitcoin Core uses VARINT (CVarInt) for the ScriptCompression nSize field.
- * See: compressor.h ScriptCompression::Ser/Unser.
+ * Non-special compressed script: CompactSize(script_len + 6) + raw script bytes.
+ * Bitcoin Core uses WriteCompactSize (P2P wire varint) for the ScriptCompression
+ * nSize field — NOT the internal CVarInt/VARINT format.
+ * See: compressor.h ScriptCompression::Ser/Unser (uses WriteCompactSize).
  * Used for P2WPKH, P2WSH, P2TR, and any other non-standard script type.
  */
 function makeRawScript(scriptHex) {
     const raw = Buffer.from(scriptHex, 'hex');
     const lenCode = raw.length + 6;
-    // CVarInt (Bitcoin Core VARINT), NOT CompactSize (P2P wire format)
-    return Buffer.concat([encodeCVarInt(lenCode), raw]);
+    // CompactSize (P2P wire format), NOT CVarInt (Bitcoin Core internal VARINT)
+    return Buffer.concat([encodeCompactSize(lenCode), raw]);
 }
 
 /**
@@ -406,14 +407,14 @@ describe('decompressScript', () => {
         assert.strictEqual(size, 1); // CompactSize(6) = 0x06, 0 bytes follow
     });
 
-    it('decodes a long non-special script requiring multi-byte CVarInt (≥247 bytes)', () => {
-        // A 247-byte script → CVarInt(247+6=253) → 2 bytes [0x81, 0x7d]
-        // CVarInt(253): 253 > 127 so multi-byte: [253 & 0x7f | 0x80, (253>>7)-1] = [0x81, 0x7d]
+    it('decodes a long non-special script requiring multi-byte CompactSize (≥247 bytes)', () => {
+        // A 247-byte script → CompactSize(247+6=253) → 3 bytes [0xfd, 0xfd, 0x00]
+        // CompactSize(253): first marker byte 0xfd, then 253 as LE uint16 = 0xfd 0x00
         const hex = '51'.repeat(247);
         const buf = makeRawScript(hex);
         const { scriptPubKey, size } = decompressScript(buf, 0);
         assert.strictEqual(scriptPubKey, hex);
-        assert.strictEqual(size, 2 + 247); // 2-byte CVarInt(253) + script
+        assert.strictEqual(size, 3 + 247); // 3-byte CompactSize(253) + script
     });
 
     it('correctly advances offset for back-to-back compressed scripts', () => {

@@ -153,10 +153,10 @@ export function computeFeeStats(txEntries) {
         const fee = inputTotal - outputTotal;
 
         if (fee < 0) {
-            // Prevouts missing or mismatched for this tx — skip rather than abort
-            // the entire block's fee stats. This can happen for edge-case txns
-            // where undo data was unavailable.
-            continue;
+            throw new Error(
+                `computeFeeStats: negative fee (${fee} sat) for tx ${tx.txid ?? '?'} — ` +
+                'prevout values are missing or mismatched'
+            );
         }
 
         const vsize = getVirtualSize(tx);
