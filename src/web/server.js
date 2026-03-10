@@ -24,6 +24,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createServer } from 'node:http';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Vite build output — served as static assets
+const DIST_DIR = path.resolve(__dirname, 'dist');
 
 // ── Data store ────────────────────────────────────────────────────────────────
 
@@ -121,6 +126,19 @@ function json(res, status, body) {
 
 // ── Route handlers ────────────────────────────────────────────────────────────
 
+/** GET /api/blocks — sorted list of all loaded blocks with summary metadata */
+function handleBlocks(res) {
+    const blocks = [...store.blocksByHeight.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([, b]) => ({
+            block_height: b.block_height,
+            block_hash: b.block_hash,
+            tx_count: b.tx_count,
+            flagged_transactions: b.analysis_summary?.flagged_transactions ?? 0,
+        }));
+    json(res, 200, { ok: true, blocks });
+}
+
 /** GET /api/health */
 function handleHealth(res) {
     json(res, 200, {
@@ -173,11 +191,58 @@ function handleTx(res, txid) {
     json(res, 200, { ok: true, ...entry });
 }
 
+// ── Static file server ───────────────────────────────────────────────────────
+
+const MIME = {
+    '.html': 'text/html; charset=utf-8',
+    '.js':   'text/javascript',
+    '.mjs':  'text/javascript',
+    '.css':  'text/css',
+    '.json': 'application/json',
+    '.png':  'image/png',
+    '.svg':  'image/svg+xml',
+    '.ico':  'image/x-icon',
+    '.woff2':'font/woff2',
+    '.woff': 'font/woff',
+};
+
+/**
+ * Serve a file from DIST_DIR, falling back to index.html for SPA routing.
+ * Guards against path-traversal attacks.
+ */
+async function serveStatic(req, res) {
+    const urlPath = (req.url ?? '/').split('?')[0];
+    const relPath = urlPath === '/' ? 'index.html' : urlPath.replace(/^\//, '');
+
+    // Resolve and verify the path stays inside DIST_DIR
+    const fullPath = path.resolve(DIST_DIR, relPath);
+    if (!fullPath.startsWith(DIST_DIR + path.sep) && fullPath !== DIST_DIR) {
+        return json(res, 403, { ok: false, error: 'forbidden' });
+    }
+
+    try {
+        const content = await fs.readFile(fullPath);
+        const ext = path.extname(fullPath).toLowerCase();
+        res.writeHead(200, { 'Content-Type': MIME[ext] ?? 'application/octet-stream' });
+        res.end(content);
+    } catch {
+        // SPA fallback — let the React router handle unknown paths
+        try {
+            const index = await fs.readFile(path.join(DIST_DIR, 'index.html'));
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(index);
+        } catch {
+            json(res, 404, { ok: false, error: 'not found' });
+        }
+    }
+}
+
 // ── Request router ────────────────────────────────────────────────────────────
 
 const ROUTE_HEALTH = /^\/api\/health\/?$/;
+const ROUTE_BLOCKS = /^\/api\/blocks\/?$/;
 const ROUTE_BLOCK  = /^\/api\/block\/([^/]+)\/?$/;
-const ROUTE_TX     = /^\/api\/tx\/([^/]+)\/?$/;
+const ROUTE_TX     = /^\/api\/tx\/([^/]+)\/?$/
 
 /**
  * Main request handler dispatched by the HTTP server.
@@ -197,6 +262,10 @@ function onRequest(req, res) {
         return handleHealth(res);
     }
 
+    if (req.method === 'GET' && ROUTE_BLOCKS.test(pathname)) {
+        return handleBlocks(res);
+    }
+
     if (req.method === 'GET' && (match = ROUTE_BLOCK.exec(pathname))) {
         return handleBlock(res, match[1]);
     }
@@ -205,7 +274,8 @@ function onRequest(req, res) {
         return handleTx(res, match[1]);
     }
 
-    json(res, 404, { ok: false, error: 'not found' });
+    // Fall through to static file server (serves built React app)
+    return serveStatic(req, res);
 }
 
 // ── Entry point ───────────────────────────────────────────────────────────────
