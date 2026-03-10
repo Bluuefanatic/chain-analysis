@@ -243,13 +243,14 @@ export function decompressScript(buf, offset) {
         return { scriptPubKey: `21${prefix}${xCoord}ac`, size: 33 };
     }
 
-    // ── Non-special: CVarInt(script_len + nSpecialScripts) then raw script bytes
-    // Bitcoin Core uses VARINT (CVarInt, the internal variable-length integer)
-    // for the nSize field in ScriptCompression.  nSpecialScripts = 6, so for a
-    // script of length L the stored nSize = L + 6.  Values 0–5 are the special
-    // type codes; values ≥ 6 indicate a raw script of length nSize - 6.
-    // See: compressor.h ScriptCompression::Unser.
-    const { value, size: nSizeBytes } = readCVarInt(buf, offset);
+    // ── Non-special: CompactSize(script_len + nSpecialScripts) then raw script bytes
+    // Bitcoin Core uses WriteCompactSize / ReadCompactSize (the P2P wire varint,
+    // NOT the internal CVarInt/VARINT) for the nSize field in ScriptCompression.
+    // nSpecialScripts = 6, so for a script of length L the stored nSize = L + 6.
+    // Values 0–5 are the special type codes; values ≥ 6 indicate a raw script
+    // of length nSize - 6.
+    // See: compressor.h ScriptCompression::Ser/Unser (uses WriteCompactSize).
+    const { value, size: nSizeBytes } = readVarInt(buf, offset);
     const scriptLen = value - 6;
 
     if (scriptLen < 0) {

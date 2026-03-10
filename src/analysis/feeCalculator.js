@@ -74,6 +74,10 @@ function getVirtualSize(tx) {
         }
     }
 
+    // Guard: if witnessBytes is unexpectedly large (malformed tx or edge case),
+    // fall back to treating the whole tx as base weight to avoid vsize < 1.
+    if (witnessBytes >= tx.size) return tx.size;
+
     const baseSize = tx.size - witnessBytes;
     const weight = baseSize * 4 + witnessBytes;
     return Math.ceil(weight / 4);

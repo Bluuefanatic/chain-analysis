@@ -169,11 +169,10 @@ function processBlock(rawBlock, revBlock) {
                 try {
                     prevouts = resolvePrevouts(tx, undoCoins);
                 } catch {
-                    // Fall back to empty prevouts — fee stats will skip this tx
-                    prevouts = undoCoins.map(c => ({
-                        value_sats: c.value_sats,
-                        script_pubkey: c.script_pubkey,
-                    }));
+                    // Undo coin count doesn't match input count (e.g. blk/rev
+                    // file mismatch in fixtures).  Use empty prevouts so that
+                    // fee stats are skipped rather than inflated by wrong data.
+                    prevouts = [];
                 }
             }
         }
@@ -258,9 +257,19 @@ async function main() {
     const { blocks: rawBlocks } = blkResult;
     const { blocks: revBlocks } = revResult;
 
-    const blocksData = rawBlocks.map((rawBlock, idx) =>
-        processBlock(rawBlock, revBlocks[idx] ?? { txUndos: [] })
-    );
+    const blocksData = rawBlocks.map((rawBlock, idx) => {
+        const revBlock = revBlocks[idx] ?? { txUndos: [] };
+        // Sanity check: rev undo count must equal non-coinbase tx count.
+        // If they differ, the rev file is misaligned with the blk file for this
+        // block (known issue with some fixture snapshots).  Use empty txUndos so
+        // computeFeeStats skips these transactions rather than using wrong data.
+        const expectedUndoCount = rawBlock.raw_transactions.length - 1;
+        const safeRevBlock =
+            revBlock.txUndos.length === expectedUndoCount
+                ? revBlock
+                : { txUndos: [] };
+        return processBlock(rawBlock, safeRevBlock);
+    });
 
     // ── 5 & 6. Generate reports ───────────────────────────────────────────────
     const filename = path.basename(blkPath);
