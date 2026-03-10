@@ -195,14 +195,14 @@ function handleTx(res, txid) {
 
 const MIME = {
     '.html': 'text/html; charset=utf-8',
-    '.js':   'text/javascript',
-    '.mjs':  'text/javascript',
-    '.css':  'text/css',
+    '.js': 'text/javascript',
+    '.mjs': 'text/javascript',
+    '.css': 'text/css',
     '.json': 'application/json',
-    '.png':  'image/png',
-    '.svg':  'image/svg+xml',
-    '.ico':  'image/x-icon',
-    '.woff2':'font/woff2',
+    '.png': 'image/png',
+    '.svg': 'image/svg+xml',
+    '.ico': 'image/x-icon',
+    '.woff2': 'font/woff2',
     '.woff': 'font/woff',
 };
 
@@ -241,8 +241,8 @@ async function serveStatic(req, res) {
 
 const ROUTE_HEALTH = /^\/api\/health\/?$/;
 const ROUTE_BLOCKS = /^\/api\/blocks\/?$/;
-const ROUTE_BLOCK  = /^\/api\/block\/([^/]+)\/?$/;
-const ROUTE_TX     = /^\/api\/tx\/([^/]+)\/?$/
+const ROUTE_BLOCK = /^\/api\/block\/([^/]+)\/?$/;
+const ROUTE_TX = /^\/api\/tx\/([^/]+)\/?$/
 
 /**
  * Main request handler dispatched by the HTTP server.
