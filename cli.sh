@@ -53,26 +53,6 @@ done
 # Create output directory
 mkdir -p out
 
-# TODO: Implement chain analysis
-#   1. Read and XOR-decode blk*.dat and rev*.dat using xor.dat key
-#   2. Parse 80-byte block headers
-#   3. Parse all transactions in each block
-#   4. Parse undo data for prevouts
-#   5. Apply chain analysis heuristics to each transaction:
-#      - Common Input Ownership Heuristic (CIOH)
-#      - Change detection (script type matching, round numbers, output ordering)
-#      - Address reuse detection
-#      - CoinJoin detection (equal-value outputs, many inputs)
-#      - Consolidation detection (many inputs, few outputs)
-#      - Self-transfer detection
-#      - Peeling chain detection
-#      - OP_RETURN analysis and protocol classification
-#      - Round number payment detection
-#   6. Classify each transaction (simple_payment, consolidation, coinjoin, etc.)
-#   7. Compute per-block and file-level statistics (fee rates, script distribution, flagged counts)
-#   8. Write out/<blk_stem>.json with all blocks wrapped in a blocks array
-#   9. Generate out/<blk_stem>.md Markdown report for the block file
-
-error_json "NOT_IMPLEMENTED" "Chain analysis is not yet implemented"
-echo "Error: Chain analysis is not yet implemented" >&2
-exit 1
+# Run the Node.js chain-analysis pipeline.
+# src/cli.js emits a structured JSON error to stdout and exits 1 on failure.
+exec node "$(dirname "$0")/src/cli.js" --block "$BLK_FILE" "$REV_FILE" "$XOR_FILE"
