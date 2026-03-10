@@ -22,7 +22,6 @@
         "tiny-secp256k1": "^2.2.3"
     },
     "devDependencies": {
-        "jest": "^29.7.0",
         "vite": "^5.2.0",
         "@vitejs/plugin-react": "^4.3.0",
         "react": "^18.3.1",

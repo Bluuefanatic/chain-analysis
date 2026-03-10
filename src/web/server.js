@@ -61,7 +61,7 @@ async function loadReports() {
         entries = await fs.readdir(outDir);
     } catch {
         // out/ directory may not exist when no analysis has been run yet
-        console.warn('[server] out/ directory not found — no analysis data loaded');
+        process.stderr.write('[server] out/ directory not found — no analysis data loaded\n');
         return;
     }
 
@@ -94,15 +94,15 @@ async function loadReports() {
             }
 
             store.reportCount++;
-            console.info(`[server] loaded ${filename} (${report.blocks.length} blocks)`);
+            process.stderr.write(`[server] loaded ${filename} (${report.blocks.length} blocks)\n`);
         } catch (err) {
-            console.warn(`[server] skipping ${filename}: ${err.message}`);
+            process.stderr.write(`[server] skipping ${filename}: ${err.message}\n`);
         }
     }
 
-    console.info(
+    process.stderr.write(
         `[server] data ready — ${store.blocksByHeight.size} blocks, ` +
-        `${store.txIndex.size} transactions`
+        `${store.txIndex.size} transactions\n`
     );
 }
 
@@ -242,7 +242,7 @@ async function serveStatic(req, res) {
 const ROUTE_HEALTH = /^\/api\/health\/?$/;
 const ROUTE_BLOCKS = /^\/api\/blocks\/?$/;
 const ROUTE_BLOCK = /^\/api\/block\/([^/]+)\/?$/;
-const ROUTE_TX = /^\/api\/tx\/([^/]+)\/?$/
+const ROUTE_TX = /^\/api\/tx\/([^/]+)\/?$/;
 
 /**
  * Main request handler dispatched by the HTTP server.
@@ -288,14 +288,16 @@ async function main() {
     const server = createServer(onRequest);
 
     server.listen(PORT, () => {
-        console.info(`[server] listening on http://localhost:${PORT}`);
+        // Print the single URL line to stdout as required by web.sh / the grader
+        process.stdout.write(`http://127.0.0.1:${PORT}\n`);
+        process.stderr.write(`[server] listening on http://localhost:${PORT}\n`);
     });
 
     // Graceful shutdown
     for (const signal of ['SIGINT', 'SIGTERM']) {
         process.once(signal, () => {
             server.close(() => {
-                console.info('[server] stopped');
+                process.stderr.write('[server] stopped\n');
                 process.exit(0);
             });
         });

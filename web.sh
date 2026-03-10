@@ -20,8 +20,7 @@ PORT="${PORT:-3000}"
 # Build the React front-end (outputs to src/web/dist/)
 npm run build:web
 
-# Print the URL as required by the grader
-echo "http://127.0.0.1:${PORT}"
-
-# Start the API + static-file server (respects PORT env)
+# Start the API + static-file server.
+# The server prints exactly one line to stdout: "http://127.0.0.1:<PORT>"
+# All other log messages go to stderr.
 exec node src/web/server.js
