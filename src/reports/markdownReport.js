@@ -36,9 +36,9 @@
  */
 
 import path from 'node:path';
-import fs   from 'node:fs/promises';
+import fs from 'node:fs/promises';
 
-import { computeFeeStats }  from '../analysis/feeCalculator.js';
+import { computeFeeStats } from '../analysis/feeCalculator.js';
 import { detectScriptType } from '../analysis/scriptTypes.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -116,10 +116,10 @@ function safeFeeStats(txEntries) {
     try {
         const r = computeFeeStats(txEntries);
         return {
-            min_sat_vb:    +r.min_sat_vb.toFixed(3),
-            max_sat_vb:    +r.max_sat_vb.toFixed(3),
+            min_sat_vb: +r.min_sat_vb.toFixed(3),
+            max_sat_vb: +r.max_sat_vb.toFixed(3),
             median_sat_vb: +r.median_sat_vb.toFixed(3),
-            mean_sat_vb:   +r.mean_sat_vb.toFixed(3),
+            mean_sat_vb: +r.mean_sat_vb.toFixed(3),
         };
     } catch {
         return { min_sat_vb: 0, max_sat_vb: 0, median_sat_vb: 0, mean_sat_vb: 0 };
@@ -174,7 +174,7 @@ function pickNotable(txEntries, limit = 10) {
     const scored = txEntries.map(e => {
         let score = 0;
         const c = e.classification;
-        if (c === 'coinjoin')     score = 3;
+        if (c === 'coinjoin') score = 3;
         else if (c === 'consolidation') score = 2;
         else if (c === 'batch_payment') score = 1;
 
@@ -202,8 +202,8 @@ function table(headers, rows) {
         Math.max(h.length, ...rows.map(r => (r[i] ?? '').length))
     );
     const header = '| ' + headers.map((h, i) => h.padEnd(widths[i])).join(' | ') + ' |';
-    const sep    = '| ' + widths.map(w => '-'.repeat(w)).join(' | ') + ' |';
-    const body   = rows.map(r =>
+    const sep = '| ' + widths.map(w => '-'.repeat(w)).join(' | ') + ' |';
+    const body = rows.map(r =>
         '| ' + r.map((c, i) => (c ?? '').padEnd(widths[i])).join(' | ') + ' |'
     ).join('\n');
     return [header, sep, body].join('\n');
@@ -214,17 +214,17 @@ function table(headers, rows) {
 /** §1  File overview table. */
 function sectionOverview(filename, blocksData) {
     const allEntries = blocksData.flatMap(b => b.transactions ?? []);
-    const totalTxs   = blocksData.reduce((s, b) => s + (b.transactions?.length ?? 0), 0);
-    const flagged    = countFlagged(allEntries);
-    const hIds       = allHeuristicIds(allEntries);
+    const totalTxs = blocksData.reduce((s, b) => s + (b.transactions?.length ?? 0), 0);
+    const flagged = countFlagged(allEntries);
+    const hIds = allHeuristicIds(allEntries);
 
     const rows = [
-        ['Source file',            `\`${filename}\``],
-        ['Blocks in file',         String(blocksData.length)],
-        ['Total transactions',     fmt(totalTxs)],
-        ['Flagged transactions',   fmt(flagged)],
-        ['Heuristics applied',     hIds.length > 0 ? hIds.map(id => `\`${id}\``).join(', ') : '—'],
-        ['Report generated',       new Date().toUTCString()],
+        ['Source file', `\`${filename}\``],
+        ['Blocks in file', String(blocksData.length)],
+        ['Total transactions', fmt(totalTxs)],
+        ['Flagged transactions', fmt(flagged)],
+        ['Heuristics applied', hIds.length > 0 ? hIds.map(id => `\`${id}\``).join(', ') : '—'],
+        ['Report generated', new Date().toUTCString()],
     ];
 
     return [
@@ -235,22 +235,22 @@ function sectionOverview(filename, blocksData) {
 
 /** §2  Aggregated summary statistics. */
 function sectionSummaryStats(blocksData) {
-    const allEntries  = blocksData.flatMap(b => b.transactions ?? []);
-    const feeStats    = safeFeeStats(allEntries);
-    const dist        = mergeScriptDists(blocksData.map(b => scriptDist(b.transactions ?? [])));
+    const allEntries = blocksData.flatMap(b => b.transactions ?? []);
+    const feeStats = safeFeeStats(allEntries);
+    const dist = mergeScriptDists(blocksData.map(b => scriptDist(b.transactions ?? [])));
     const classCounts = classificationCounts(allEntries);
     const totalOutputs = Object.values(dist).reduce((s, v) => s + v, 0);
 
     const feeRows = [
-        ['Minimum',  `${feeStats.min_sat_vb} sat/vbyte`],
-        ['Maximum',  `${feeStats.max_sat_vb} sat/vbyte`],
-        ['Median',   `${feeStats.median_sat_vb} sat/vbyte`],
-        ['Mean',     `${feeStats.mean_sat_vb} sat/vbyte`],
+        ['Minimum', `${feeStats.min_sat_vb} sat/vbyte`],
+        ['Maximum', `${feeStats.max_sat_vb} sat/vbyte`],
+        ['Median', `${feeStats.median_sat_vb} sat/vbyte`],
+        ['Mean', `${feeStats.mean_sat_vb} sat/vbyte`],
     ];
 
     const scriptRows = SCRIPT_TYPES.map(k => {
         const count = dist[k] ?? 0;
-        const pct   = totalOutputs > 0 ? ((count / totalOutputs) * 100).toFixed(1) : '0.0';
+        const pct = totalOutputs > 0 ? ((count / totalOutputs) * 100).toFixed(1) : '0.0';
         return [k, fmt(count), `${pct}%`];
     });
 
@@ -276,7 +276,7 @@ function sectionSummaryStats(blocksData) {
 /** Build the heuristic-findings table for one block's TxEntries. */
 function heuristicFindingsTable(txEntries) {
     const counts = heuristicDetectionCounts(txEntries);
-    const ids    = allHeuristicIds(txEntries);
+    const ids = allHeuristicIds(txEntries);
     if (ids.length === 0) return '_No heuristics applied._';
 
     const rows = ids.map(id => {
@@ -301,10 +301,10 @@ function notableTransactionsTable(txEntries) {
             .join(', ') || '—';
 
         // Extra detail for coinjoin / consolidation
-        const cj  = heuristics?.coinjoin;
+        const cj = heuristics?.coinjoin;
         const con = heuristics?.consolidation;
         let detail = '—';
-        if (cj?.detected)  detail = `${cj.equal_output_count} equal outputs @ ${fmt(cj.denomination_sats)} sat`;
+        if (cj?.detected) detail = `${cj.equal_output_count} equal outputs @ ${fmt(cj.denomination_sats)} sat`;
         else if (con?.detected) detail = `${con.input_count}→${con.output_count} (ratio ${con.ratio})`;
 
         return [
@@ -323,26 +323,26 @@ function sectionBlocks(blocksData) {
 
     const parts = blocksData.map((block, idx) => {
         const {
-            block_hash   = '—',
+            block_hash = '—',
             block_height = '—',
             timestamp,
             transactions = [],
         } = block;
 
-        const txCount   = transactions.length;
-        const flagged   = countFlagged(transactions);
-        const feeStats  = safeFeeStats(transactions);
-        const dist      = scriptDist(transactions);
+        const txCount = transactions.length;
+        const flagged = countFlagged(transactions);
+        const feeStats = safeFeeStats(transactions);
+        const dist = scriptDist(transactions);
 
         const infoRows = [
-            ['Block hash',      `\`${block_hash}\``],
-            ['Block height',    fmt(block_height)],
-            ['Timestamp',       fmtTimestamp(timestamp)],
-            ['Transactions',    fmt(txCount)],
-            ['Flagged',         fmt(flagged)],
-            ['Min fee rate',    `${feeStats.min_sat_vb} sat/vbyte`],
+            ['Block hash', `\`${block_hash}\``],
+            ['Block height', fmt(block_height)],
+            ['Timestamp', fmtTimestamp(timestamp)],
+            ['Transactions', fmt(txCount)],
+            ['Flagged', fmt(flagged)],
+            ['Min fee rate', `${feeStats.min_sat_vb} sat/vbyte`],
             ['Median fee rate', `${feeStats.median_sat_vb} sat/vbyte`],
-            ['Max fee rate',    `${feeStats.max_sat_vb} sat/vbyte`],
+            ['Max fee rate', `${feeStats.max_sat_vb} sat/vbyte`],
         ];
 
         const distRows = SCRIPT_TYPES.map(k => [k, fmt(dist[k] ?? 0)]);
@@ -425,7 +425,7 @@ associated with CoinJoin or consolidation rather than simple multi-UTXO spending
 export function buildMarkdown(filename, blocksData) {
     const data = Array.isArray(blocksData) ? blocksData : [];
     const allEntries = data.flatMap(b => b.transactions ?? []);
-    const totalTxs   = allEntries.length;
+    const totalTxs = allEntries.length;
     const blockCount = data.length;
 
     const header = [
@@ -453,9 +453,9 @@ export function buildMarkdown(filename, blocksData) {
         '',
     ].join('\n');
 
-    const overview  = sectionOverview(filename, data) + '\n\n---\n';
-    const summary   = sectionSummaryStats(data) + '\n\n---\n';
-    const blocks    = sectionBlocks(data);
+    const overview = sectionOverview(filename, data) + '\n\n---\n';
+    const summary = sectionSummaryStats(data) + '\n\n---\n';
+    const blocks = sectionBlocks(data);
 
     const md = [header, toc, overview, '', summary, '\n', blocks, '\n'].join('\n');
     return ensureMinSize(md);
@@ -473,9 +473,9 @@ export function buildMarkdown(filename, blocksData) {
  */
 export async function generateMarkdownReport(blkFilePath, blocksData, options = {}) {
     const filename = path.basename(blkFilePath);
-    const stem     = filename.replace(/\.dat$/i, '');
-    const outDir   = options.outDir ?? path.join(process.cwd(), 'out');
-    const outPath  = path.join(outDir, `${stem}.md`);
+    const stem = filename.replace(/\.dat$/i, '');
+    const outDir = options.outDir ?? path.join(process.cwd(), 'out');
+    const outPath = path.join(outDir, `${stem}.md`);
 
     const md = buildMarkdown(filename, blocksData);
 
