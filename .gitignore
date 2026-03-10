@@ -4,3 +4,4 @@ __pycache__/
 target/
 .env
 out/
+out/*.json
