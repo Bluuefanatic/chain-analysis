@@ -17,11 +17,11 @@ set -euo pipefail
 
 PORT="${PORT:-3000}"
 
-# TODO: Start your web server here, for example:
-#   exec node server.js
-#   exec python -m http.server "$PORT"
-#   exec cargo run --release -- --port "$PORT"
+# Build the React front-end (outputs to src/web/dist/)
+npm run build:web
 
-echo "Error: Web visualizer is not yet implemented" >&2
-echo "Set up your web server to listen on port $PORT" >&2
-exit 1
+# Print the URL as required by the grader
+echo "http://127.0.0.1:${PORT}"
+
+# Start the API + static-file server (respects PORT env)
+exec node src/web/server.js
