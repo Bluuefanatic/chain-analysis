@@ -230,6 +230,9 @@ function sectionOverview(filename, blocksData) {
     return [
         '## File Overview\n',
         table(['Property', 'Value'], rows),
+        '',
+        '> **Flagged:** A transaction is counted as flagged when at least one applied heuristic',
+        '> returns `detected: true`. A single transaction may be flagged by multiple heuristics simultaneously.',
     ].join('\n');
 }
 
@@ -248,6 +251,12 @@ function sectionSummaryStats(blocksData) {
         ['Mean', `${feeStats.mean_sat_vb} sat/vbyte`],
     ];
 
+    const allFeeZero = Object.values(feeStats).every(v => v === 0);
+    const feeZeroNote = allFeeZero
+        ? ['', '> **Note:** All fee-rate values are 0. This occurs when prevout (input value) data is',
+            '> unavailable for the transactions in this file, making it impossible to calculate fees.']
+        : [];
+
     const scriptRows = SCRIPT_TYPES.map(k => {
         const count = dist[k] ?? 0;
         const pct = totalOutputs > 0 ? ((count / totalOutputs) * 100).toFixed(1) : '0.0';
@@ -262,8 +271,13 @@ function sectionSummaryStats(blocksData) {
         '## Summary Statistics\n',
         '### Fee Rate Distribution\n',
         table(['Statistic', 'Value'], feeRows),
+        ...feeZeroNote,
         '',
         '### Script Type Breakdown\n',
+        '> **Note:** Each value counts individual **transaction outputs** (`vout` entries), not transactions.',
+        '> A single transaction may produce outputs of multiple different script types, so the sum of all',
+        '> output counts will exceed the total number of transactions analysed.',
+        '',
         table(['Script Type', 'Output Count', 'Share'], scriptRows),
         '',
         '### Transaction Classification Breakdown\n',
@@ -356,6 +370,8 @@ function sectionBlocks(blocksData) {
             heuristicFindingsTable(transactions),
             '',
             '### Script Type Distribution\n',
+            '> **Note:** Counts are per output (`vout`), not per transaction. Totals may exceed the transaction count for this block.',
+            '',
             table(['Script Type', 'Output Count'], distRows),
             '',
             '### Notable Transactions\n',
@@ -366,20 +382,11 @@ function sectionBlocks(blocksData) {
     return parts.join('\n\n---\n\n');
 }
 
-// ── Padding to guarantee ≥1 KB output ─────────────────────────────────────────
-
-const MIN_BYTES = 1024;
-
 /**
- * If the rendered Markdown is shorter than 1 KB, append a legend section that
- * explains each heuristic — this is always useful content, never padding for
- * padding's sake, and ensures grader compliance even for empty/toy inputs.
+ * Build the Heuristic Legend section — always included in every report.
  */
-function ensureMinSize(md) {
-    if (Buffer.byteLength(md, 'utf-8') >= MIN_BYTES) return md;
-
-    const legend = `
-## Heuristic Legend
+function sectionLegend() {
+    return `## Heuristic Legend
 
 | ID | Name | What it detects |
 |---|---|---|
@@ -409,8 +416,20 @@ associated with CoinJoin or consolidation rather than simple multi-UTXO spending
 - Change detection is less reliable for transactions with ≥3 outputs.
 - Prevout data is required for address-reuse detection; missing prevouts → not detected.
 `;
+}
 
-    return md + legend;
+// ── Padding to guarantee ≥1 KB output ─────────────────────────────────────────
+
+const MIN_BYTES = 1024;
+
+/**
+ * If the rendered Markdown is shorter than 1 KB, append extra whitespace.
+ * The heuristic legend is now always included via sectionLegend(), so no
+ * content needs to be added here.
+ */
+function ensureMinSize(md) {
+    if (Buffer.byteLength(md, 'utf-8') >= MIN_BYTES) return md;
+    return md + '\n';
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -456,8 +475,9 @@ export function buildMarkdown(filename, blocksData) {
     const overview = sectionOverview(filename, data) + '\n\n---\n';
     const summary = sectionSummaryStats(data) + '\n\n---\n';
     const blocks = sectionBlocks(data);
+    const legend = sectionLegend();
 
-    const md = [header, toc, overview, '', summary, '\n', blocks, '\n'].join('\n');
+    const md = [header, toc, overview, '', summary, '\n', blocks, '\n\n---\n\n', legend, '\n'].join('\n');
     return ensureMinSize(md);
 }
 
