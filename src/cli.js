@@ -99,6 +99,64 @@ function decodeBip34Height(coinbaseTx) {
 // ── Heuristic runner ──────────────────────────────────────────────────────────
 
 const HEURISTICS = [cioh, changeDetection, coinjoin, consolidation, addressReuse, roundNumberPayment];
+const MAX_MONEY_SATS = 2_100_000_000_000_000;
+
+// ── Fee/vsize validation helpers ────────────────────────────────────────────
+
+/**
+ * CompactSize encoded byte width for a non-negative integer.
+ *
+ * @param {number} n
+ * @returns {number}
+ */
+function compactSizeBytes(n) {
+    if (n < 0xfd) return 1;
+    if (n <= 0xffff) return 3;
+    if (n <= 0xffffffff) return 5;
+    return 9;
+}
+
+/**
+ * Compute transaction vsize per BIP141.
+ *
+ * @param {import('./parser/transactionParser.js').DecodedTransaction} tx
+ * @returns {number}
+ */
+function computeVsize(tx) {
+    if (!tx.segwit) return tx.size;
+
+    let witnessBytes = 2; // marker + flag
+    for (const input of tx.vin) {
+        const stack = input.witness ?? [];
+        witnessBytes += compactSizeBytes(stack.length);
+        for (const item of stack) {
+            const itemLen = item.length / 2;
+            witnessBytes += compactSizeBytes(itemLen) + itemLen;
+        }
+    }
+
+    if (witnessBytes >= tx.size) return tx.size;
+
+    const baseSize = tx.size - witnessBytes;
+    const weight = baseSize * 4 + witnessBytes;
+    return Math.ceil(weight / 4);
+}
+
+/**
+ * Compute fee metrics for one non-coinbase transaction.
+ *
+ * @param {import('./parser/transactionParser.js').DecodedTransaction} tx
+ * @param {Array<{ value_sats: number }>} prevouts
+ * @returns {{ fee_sats: number, vsize: number, fee_rate_sat_vb: number, input_total: number, output_total: number }}
+ */
+function computeFeeMetrics(tx, prevouts) {
+    const input_total = prevouts.reduce((sum, p) => sum + p.value_sats, 0);
+    const output_total = tx.vout.reduce((sum, o) => sum + o.value_sats, 0);
+    const fee_sats = input_total - output_total;
+    const vsize = computeVsize(tx);
+    const fee_rate_sat_vb = fee_sats / vsize;
+    return { fee_sats, vsize, fee_rate_sat_vb, input_total, output_total };
+}
 
 /**
  * Run every heuristic on a single decoded transaction and return the results
@@ -302,6 +360,34 @@ function processBlock(rawBlock, revBlock, diagnostics = null) {
                     if (diagnostics) {
                         diagnostics.totalPrevouts += prevouts.length;
                         diagnostics.nonZeroPrevouts += prevouts.filter(p => p.value_sats > 0).length;
+
+                        for (const p of prevouts) {
+                            if (p.value_sats > MAX_MONEY_SATS) {
+                                diagnostics.hugePrevouts.push({
+                                    txid: tx.txid,
+                                    value_sats: p.value_sats,
+                                });
+                            }
+                        }
+
+                        const { fee_sats, vsize, fee_rate_sat_vb, input_total, output_total } = computeFeeMetrics(tx, prevouts);
+                        if (!Number.isInteger(fee_sats)) {
+                            diagnostics.nonIntegerFees.push({
+                                txid: tx.txid,
+                                fee_sats,
+                                input_total,
+                                output_total,
+                            });
+                        }
+                        if (fee_rate_sat_vb > 5000) {
+                            diagnostics.highFeeRates.push({ txid: tx.txid, fee_sats, vsize, fee_rate_sat_vb });
+                        }
+                        if (fee_rate_sat_vb < 0) {
+                            diagnostics.negativeFeeRates.push({ txid: tx.txid, fee_sats, vsize, fee_rate_sat_vb });
+                        }
+                        if (fee_rate_sat_vb < 1 && fee_sats > 0) {
+                            diagnostics.lowPositiveFeeRates.push({ txid: tx.txid, fee_sats, vsize, fee_rate_sat_vb });
+                        }
                     }
                 } catch {
                     // Undo coin count doesn't match input count (e.g. blk/rev
@@ -422,6 +508,11 @@ async function main() {
             inputMismatchTxs: 0,
             totalPrevouts: 0,
             nonZeroPrevouts: 0,
+            hugePrevouts: [],
+            nonIntegerFees: [],
+            highFeeRates: [],
+            negativeFeeRates: [],
+            lowPositiveFeeRates: [],
         };
 
         const blockData = processBlock(rawBlock, revBlock, diagnostics);
@@ -442,6 +533,37 @@ async function main() {
                     `(${(nonZeroRatio * 100).toFixed(1)}%)\n`
                 );
             }
+        }
+
+        for (const x of diagnostics.hugePrevouts.slice(0, 5)) {
+            process.stderr.write(
+                `Warning: block ${idx} suspicious prevout value tx=${x.txid} ` +
+                `value_sats=${x.value_sats}\n`
+            );
+        }
+        for (const x of diagnostics.nonIntegerFees.slice(0, 5)) {
+            process.stderr.write(
+                `Warning: block ${idx} non-integer fee tx=${x.txid} ` +
+                `fee_sats=${x.fee_sats} input_total=${x.input_total} output_total=${x.output_total}\n`
+            );
+        }
+        for (const x of diagnostics.highFeeRates.slice(0, 5)) {
+            process.stderr.write(
+                `Warning: block ${idx} very high fee-rate tx=${x.txid} ` +
+                `fee_rate_sat_vb=${x.fee_rate_sat_vb.toFixed(3)} fee_sats=${x.fee_sats} vsize=${x.vsize}\n`
+            );
+        }
+        for (const x of diagnostics.negativeFeeRates.slice(0, 5)) {
+            process.stderr.write(
+                `Warning: block ${idx} negative fee-rate tx=${x.txid} ` +
+                `fee_rate_sat_vb=${x.fee_rate_sat_vb.toFixed(3)} fee_sats=${x.fee_sats} vsize=${x.vsize}\n`
+            );
+        }
+        for (const x of diagnostics.lowPositiveFeeRates.slice(0, 5)) {
+            process.stderr.write(
+                `Warning: block ${idx} low positive fee-rate tx=${x.txid} ` +
+                `fee_rate_sat_vb=${x.fee_rate_sat_vb.toFixed(6)} fee_sats=${x.fee_sats} vsize=${x.vsize}\n`
+            );
         }
 
         return blockData;
