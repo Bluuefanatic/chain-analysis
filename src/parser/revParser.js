@@ -344,6 +344,8 @@ function parseCoin(buf, offset) {
  *                               Pass null (default) when not obfuscated.
  * @returns {{
  *   blocks: Array<{
+ *     undoData: Buffer,
+ *     checksum: Buffer,
  *     txUndos: Array<Array<{
  *       value_sats:   number,
  *       script_pubkey: string,
@@ -388,8 +390,17 @@ export function parseRevFile(revPath, xorKey = null) {
         pos += 4;
 
         const recordStart = pos;
-        // recordEnd points just past the 32-byte checksum that follows CBlockUndo data
-        const recordEnd = pos + size + 32;
+        const undoDataStart = recordStart;
+        const undoDataEnd = undoDataStart + size;
+        const checksumStart = undoDataEnd;
+        const recordEnd = checksumStart + 32;
+
+        if (recordEnd > buf.length) {
+            throw new Error(
+                `parseRevFile: truncated undo record at offset ${recordStart} in "${revPath}" ` +
+                `(need ${size + 32} bytes, have ${buf.length - recordStart})`
+            );
+        }
 
         // ── CBlockUndo parsing ───────────────────────────────────────────────
         // vtxundo_count: number of non-coinbase transactions.
@@ -399,19 +410,41 @@ export function parseRevFile(revPath, xorKey = null) {
 
         const txUndos = [];
 
-        // recordEnd includes the 32-byte checksum; parse only up to recordEnd-32
-        const coinDataEnd = recordEnd - 32;
+        // Parse only the CBlockUndo payload bytes; the 32-byte checksum follows it.
+        const coinDataEnd = undoDataEnd;
 
-        for (let i = 0; i < txCount && pos < coinDataEnd; i++) {
+        for (let i = 0; i < txCount; i++) {
+            if (pos >= coinDataEnd) {
+                throw new Error(
+                    `parseRevFile: txundo vector underflow in "${revPath}" at tx index ${i} ` +
+                    `(offset ${pos}, payload ends at ${coinDataEnd})`
+                );
+            }
+
             // Number of inputs in this non-coinbase transaction.
             // std::vector<Coin> is also serialised with WriteCompactSize.
             const { value: inputCount, size: inputCountSize } = readVarInt(buf, pos);
             pos += inputCountSize;
 
             const coins = [];
-            for (let j = 0; j < inputCount && pos < coinDataEnd; j++) {
+            for (let j = 0; j < inputCount; j++) {
+                if (pos >= coinDataEnd) {
+                    throw new Error(
+                        `parseRevFile: txinundo vector underflow in "${revPath}" at tx ${i}, input ${j} ` +
+                        `(offset ${pos}, payload ends at ${coinDataEnd})`
+                    );
+                }
+
                 const coin = parseCoin(buf, pos);
                 pos += coin.size;
+
+                if (pos > coinDataEnd) {
+                    throw new Error(
+                        `parseRevFile: coin overflow in "${revPath}" at tx ${i}, input ${j} ` +
+                        `(offset ${pos}, payload ends at ${coinDataEnd})`
+                    );
+                }
+
                 coins.push({
                     value_sats: coin.value_sats,
                     script_pubkey: coin.script_pubkey,
@@ -422,10 +455,20 @@ export function parseRevFile(revPath, xorKey = null) {
             txUndos.push(coins);
         }
 
-        // Skip past any remaining bytes in this record (checksum + any padding)
+        if (pos !== coinDataEnd) {
+            throw new Error(
+                `parseRevFile: undo payload misalignment in "${revPath}" at offset ${recordStart} ` +
+                `(parsed ${pos - undoDataStart} bytes, expected ${size})`
+            );
+        }
+
+        const undoData = Buffer.from(buf.subarray(undoDataStart, undoDataEnd));
+        const checksum = Buffer.from(buf.subarray(checksumStart, recordEnd));
+
+        // Skip past the checksum and continue with the next record.
         pos = recordEnd;
 
-        blocks.push({ txUndos });
+        blocks.push({ txUndos, undoData, checksum });
     }
 
     return { blocks };

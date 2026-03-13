@@ -28,7 +28,7 @@
 import path from 'node:path';
 import process from 'node:process';
 
-import { parseBlockFile, loadXorKey } from './parser/blockParser.js';
+import { parseBlockFile, loadXorKey, readVarInt } from './parser/blockParser.js';
 import { decodeTransaction } from './parser/transactionParser.js';
 import { parseRevFile, resolvePrevouts } from './parser/revParser.js';
 
@@ -123,6 +123,130 @@ function runHeuristics(tx, context) {
     return results;
 }
 
+// ── Undo alignment helpers ──────────────────────────────────────────────────
+
+/**
+ * Read the input count from a raw transaction buffer.
+ *
+ * This only walks the transaction prefix up to vin count and does not parse
+ * scripts or outputs, so it is much cheaper than full decode.
+ *
+ * @param {Buffer} rawTx
+ * @returns {number}
+ */
+function readInputCountFromRawTx(rawTx) {
+    let pos = 4; // version
+    const isSegwit = rawTx[pos] === 0x00 && rawTx[pos + 1] !== 0x00;
+    if (isSegwit) pos += 2;
+    return readVarInt(rawTx, pos).value;
+}
+
+/**
+ * Build a stable signature for one raw block using non-coinbase input counts.
+ *
+ * Signature format:
+ *   <non_coinbase_tx_count>|<in1>,<in2>,...,<inN>
+ *
+ * @param {{ raw_transactions: Buffer[] }} rawBlock
+ * @returns {string}
+ */
+function buildRawBlockUndoSignature(rawBlock) {
+    const counts = [];
+    for (let i = 1; i < rawBlock.raw_transactions.length; i++) {
+        try {
+            counts.push(readInputCountFromRawTx(rawBlock.raw_transactions[i]));
+        } catch {
+            // Keep a deterministic placeholder so signatures remain comparable.
+            counts.push(-1);
+        }
+    }
+    return `${counts.length}|${counts.join(',')}`;
+}
+
+/**
+ * Build a stable signature for one rev block using txinundo counts.
+ *
+ * @param {{ txUndos?: Array<Array<unknown>> }} revBlock
+ * @returns {string}
+ */
+function buildRevBlockUndoSignature(revBlock) {
+    const counts = Array.isArray(revBlock?.txUndos)
+        ? revBlock.txUndos.map(coins => coins.length)
+        : [];
+    return `${counts.length}|${counts.join(',')}`;
+}
+
+/**
+ * Align rev blocks to blk blocks using per-transaction input-count signatures.
+ *
+ * This is robust to file-order differences between blk and rev records while
+ * preserving strict in-block ordering of undo entries.
+ *
+ * @param {Array<{ raw_transactions: Buffer[] }>} rawBlocks
+ * @param {Array<{ txUndos?: Array }>} revBlocks
+ * @returns {{ aligned: Array<{ txUndos: Array }>, matched: number, unmatched: number }}
+ */
+function alignRevBlocks(rawBlocks, revBlocks) {
+    const aligned = Array.from({ length: rawBlocks.length }, () => ({ txUndos: [] }));
+
+    const revBuckets = new Map();
+    for (let i = 0; i < revBlocks.length; i++) {
+        const key = buildRevBlockUndoSignature(revBlocks[i]);
+        const bucket = revBuckets.get(key) ?? [];
+        bucket.push(i);
+        revBuckets.set(key, bucket);
+    }
+
+    let matched = 0;
+    for (let i = 0; i < rawBlocks.length; i++) {
+        const key = buildRawBlockUndoSignature(rawBlocks[i]);
+        const bucket = revBuckets.get(key);
+        if (!bucket || bucket.length === 0) continue;
+
+        const revIdx = bucket.shift();
+        aligned[i] = { txUndos: Array.isArray(revBlocks[revIdx]?.txUndos) ? revBlocks[revIdx].txUndos : [] };
+        matched++;
+    }
+
+    return { aligned, matched, unmatched: rawBlocks.length - matched };
+}
+
+/**
+ * Best-effort fallback alignment when full signature matching fails.
+ *
+ * @param {Array<{ raw_transactions: Buffer[] }>} rawBlocks
+ * @param {Array<{ txUndos?: Array }>} revBlocks
+ * @param {Array<{ txUndos: Array }>} aligned
+ * @returns {number} number of additional blocks matched
+ */
+function fillAlignmentByUndoCount(rawBlocks, revBlocks, aligned) {
+    const usedRev = new Set();
+    for (const entry of aligned) {
+        if (!entry.txUndos || entry.txUndos.length === 0) continue;
+
+        const idx = revBlocks.findIndex(r => r.txUndos === entry.txUndos);
+        if (idx >= 0) usedRev.add(idx);
+    }
+
+    let additional = 0;
+    for (let i = 0; i < rawBlocks.length; i++) {
+        if (aligned[i].txUndos.length > 0) continue;
+
+        const expectedUndoCount = rawBlocks[i].raw_transactions.length - 1;
+        const candidate = revBlocks.findIndex(
+            (r, idx) => !usedRev.has(idx) && Array.isArray(r.txUndos) && r.txUndos.length === expectedUndoCount
+        );
+
+        if (candidate >= 0) {
+            aligned[i] = { txUndos: revBlocks[candidate].txUndos };
+            usedRev.add(candidate);
+            additional++;
+        }
+    }
+
+    return additional;
+}
+
 // ── Block processor ───────────────────────────────────────────────────────────
 
 /**
@@ -144,7 +268,7 @@ function runHeuristics(tx, context) {
  *   transactions: Array
  * }}
  */
-function processBlock(rawBlock, revBlock) {
+function processBlock(rawBlock, revBlock, diagnostics = null) {
     const { block_hash, timestamp, raw_transactions } = rawBlock;
     const txUndos = revBlock?.txUndos ?? [];
 
@@ -168,12 +292,26 @@ function processBlock(rawBlock, revBlock) {
             if (undoCoins) {
                 try {
                     prevouts = resolvePrevouts(tx, undoCoins);
+
+                    // Attach prevout value directly onto each input for downstream
+                    // fee/debug visibility without changing existing interfaces.
+                    for (let vinIdx = 0; vinIdx < tx.vin.length; vinIdx++) {
+                        tx.vin[vinIdx].prev_value = prevouts[vinIdx]?.value_sats ?? null;
+                    }
+
+                    if (diagnostics) {
+                        diagnostics.totalPrevouts += prevouts.length;
+                        diagnostics.nonZeroPrevouts += prevouts.filter(p => p.value_sats > 0).length;
+                    }
                 } catch {
                     // Undo coin count doesn't match input count (e.g. blk/rev
                     // file mismatch in fixtures).  Use empty prevouts so that
                     // fee stats are skipped rather than inflated by wrong data.
                     prevouts = [];
+                    if (diagnostics) diagnostics.inputMismatchTxs++;
                 }
+            } else if (diagnostics) {
+                diagnostics.missingUndoTxs++;
             }
         }
 
@@ -257,18 +395,56 @@ async function main() {
     const { blocks: rawBlocks } = blkResult;
     const { blocks: revBlocks } = revResult;
 
+    const { aligned: alignedRevBlocks, matched, unmatched } = alignRevBlocks(rawBlocks, revBlocks);
+    const fallbackMatched = fillAlignmentByUndoCount(rawBlocks, revBlocks, alignedRevBlocks);
+    const totalMatched = matched + fallbackMatched;
+    const totalUnmatched = rawBlocks.length - totalMatched;
+    if (totalUnmatched > 0) {
+        process.stderr.write(
+            `Warning: aligned ${totalMatched}/${rawBlocks.length} blocks from rev data; ` +
+            `${totalUnmatched} block(s) have no matching undo record\n`
+        );
+    }
+
     const blocksData = rawBlocks.map((rawBlock, idx) => {
-        const revBlock = revBlocks[idx] ?? { txUndos: [] };
-        // Sanity check: rev undo count must equal non-coinbase tx count.
-        // If they differ, the rev file is misaligned with the blk file for this
-        // block (known issue with some fixture snapshots).  Use empty txUndos so
-        // prevouts stay empty and fee stats fall back to zero via safeFeeStats.
+        const revBlock = alignedRevBlocks[idx] ?? { txUndos: [] };
         const expectedUndoCount = rawBlock.raw_transactions.length - 1;
-        const safeRevBlock =
-            revBlock.txUndos.length === expectedUndoCount
-                ? revBlock
-                : { txUndos: [] };
-        return processBlock(rawBlock, safeRevBlock);
+
+        if (revBlock.txUndos.length !== expectedUndoCount) {
+            process.stderr.write(
+                `Warning: block ${idx} undo tx count mismatch ` +
+                `(expected ${expectedUndoCount}, got ${revBlock.txUndos.length})\n`
+            );
+        }
+
+        const diagnostics = {
+            missingUndoTxs: 0,
+            inputMismatchTxs: 0,
+            totalPrevouts: 0,
+            nonZeroPrevouts: 0,
+        };
+
+        const blockData = processBlock(rawBlock, revBlock, diagnostics);
+
+        if (diagnostics.missingUndoTxs > 0 || diagnostics.inputMismatchTxs > 0) {
+            process.stderr.write(
+                `Warning: block ${idx} prevout mapping issues ` +
+                `(missing_undo_txs=${diagnostics.missingUndoTxs}, ` +
+                `input_mismatch_txs=${diagnostics.inputMismatchTxs})\n`
+            );
+        }
+
+        if (diagnostics.totalPrevouts > 0) {
+            const nonZeroRatio = diagnostics.nonZeroPrevouts / diagnostics.totalPrevouts;
+            if (nonZeroRatio < 0.8) {
+                process.stderr.write(
+                    `Warning: block ${idx} low non-zero prevout ratio ` +
+                    `(${(nonZeroRatio * 100).toFixed(1)}%)\n`
+                );
+            }
+        }
+
+        return blockData;
     });
 
     // ── 5 & 6. Generate reports ───────────────────────────────────────────────
