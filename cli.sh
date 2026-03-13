@@ -27,7 +27,6 @@ error_json() {
 # --- Block mode ---
 if [[ "${1:-}" != "--block" ]]; then
   error_json "INVALID_ARGS" "Usage: cli.sh --block <blk.dat> <rev.dat> <xor.dat>"
-  echo "Error: This CLI only supports block mode. Use --block flag." >&2
   exit 1
 fi
 
