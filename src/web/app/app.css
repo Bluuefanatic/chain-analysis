@@ -152,6 +152,59 @@ body {
     padding: 60px;
 }
 
+/* ── Upload panel ───────────────────────────────────────────────────────── */
+
+.upload-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.upload-panel h2 {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.upload-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.upload-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.upload-grid input[type="file"] {
+    font-size: 12px;
+    color: var(--text);
+}
+
+.upload-btn {
+    align-self: flex-start;
+    background: var(--accent);
+    color: #000;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.upload-btn:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
 .no-data {
     color: var(--text-muted);
     padding: 20px;

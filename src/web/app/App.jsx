@@ -12,18 +12,35 @@ export default function App() {
     const [filter, setFilter] = useState('all');
     const [expandedTxid, setExpandedTxid] = useState(null);
     const [error, setError] = useState(null);
+    const [blkFile, setBlkFile] = useState(null);
+    const [revFile, setRevFile] = useState(null);
+    const [xorFile, setXorFile] = useState(null);
+    const [uploading, setUploading] = useState(false);
 
-    // Fetch the list of available blocks on mount
-    useEffect(() => {
-        fetch('/api/blocks')
+    function refreshBlockList(nextSelected = null) {
+        return fetch('/api/blocks')
             .then(r => r.json())
             .then(data => {
                 if (data.ok && data.blocks.length > 0) {
                     setBlockList(data.blocks);
-                    setSelectedHeight(data.blocks[0].block_height);
+
+                    if (typeof nextSelected === 'number') {
+                        setSelectedHeight(nextSelected);
+                        return;
+                    }
+
+                    if (selectedHeight === null) {
+                        setSelectedHeight(data.blocks[0].block_height);
+                    }
                 }
-            })
+            });
+    }
+
+    // Fetch the list of available blocks on mount
+    useEffect(() => {
+        refreshBlockList()
             .catch(() => setError('Failed to connect to API. Is the server running?'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Fetch block detail whenever the selected height changes
@@ -52,6 +69,48 @@ export default function App() {
             ? transactions
             : transactions.filter(tx => tx.classification === filter);
 
+    function handleUploadAnalyze() {
+        if (!blkFile || !revFile || !xorFile) {
+            setError('Please select blk.dat, rev.dat, and xor.dat before uploading.');
+            return;
+        }
+
+        setError(null);
+        setUploading(true);
+
+        const formData = new FormData();
+        formData.append('blkFile', blkFile);
+        formData.append('revFile', revFile);
+        formData.append('xorFile', xorFile);
+
+        fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+        })
+            .then(r => r.json())
+            .then(async data => {
+                if (!data.ok) {
+                    setError(data.error ?? 'Upload failed.');
+                    return;
+                }
+
+                const uploadedHeights = data.uploaded_block_heights ?? [];
+                const nextHeight = uploadedHeights.length > 0
+                    ? uploadedHeights[uploadedHeights.length - 1]
+                    : null;
+
+                if (data.block) {
+                    setBlockData(data.block);
+                    setExpandedTxid(null);
+                    setFilter('all');
+                }
+
+                await refreshBlockList(nextHeight);
+            })
+            .catch(() => setError('Failed to upload and analyze files.'))
+            .finally(() => setUploading(false));
+    }
+
     return (
         <div className="app">
             <header className="app-header">
@@ -69,6 +128,44 @@ export default function App() {
 
             <main className="app-main">
                 {error && <div className="error-banner">⚠ {error}</div>}
+
+                <section className="upload-panel">
+                    <h2>Upload Raw Block Files</h2>
+                    <div className="upload-grid">
+                        <label>
+                            blk.dat
+                            <input
+                                type="file"
+                                accept=".dat"
+                                onChange={e => setBlkFile(e.target.files?.[0] ?? null)}
+                            />
+                        </label>
+                        <label>
+                            rev.dat
+                            <input
+                                type="file"
+                                accept=".dat"
+                                onChange={e => setRevFile(e.target.files?.[0] ?? null)}
+                            />
+                        </label>
+                        <label>
+                            xor.dat
+                            <input
+                                type="file"
+                                accept=".dat"
+                                onChange={e => setXorFile(e.target.files?.[0] ?? null)}
+                            />
+                        </label>
+                    </div>
+                    <button
+                        type="button"
+                        className="upload-btn"
+                        onClick={handleUploadAnalyze}
+                        disabled={uploading}
+                    >
+                        {uploading ? 'Analyzing…' : 'Upload & Analyze'}
+                    </button>
+                </section>
 
                 {!loading && !error && blockList.length === 0 && (
                     <div className="empty-state">
