@@ -40,7 +40,7 @@ export default function App() {
     useEffect(() => {
         refreshBlockList()
             .catch(() => setError('Failed to connect to API. Is the server running?'));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Fetch block detail whenever the selected height changes

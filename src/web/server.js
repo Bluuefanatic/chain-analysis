@@ -380,13 +380,13 @@ async function handleUpload(req, res) {
         await Promise.all([
             fs.rm(reportPath, { force: true }),
             fs.rm(markdownPath, { force: true }),
-        ]).catch(() => {});
+        ]).catch(() => { });
     } catch (err) {
         process.stderr.write(`[server] upload failed: ${err.message}\n`);
         json(res, 500, { ok: false, error: 'failed to analyze uploaded files' });
     } finally {
         if (tempDir) {
-            await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
+            await fs.rm(tempDir, { recursive: true, force: true }).catch(() => { });
         }
     }
 }
