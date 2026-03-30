@@ -3,4 +3,4 @@ node_modules/
 __pycache__/
 target/
 .env
-src/web/dist/
+src/web/dist/fixtures/*.dat.gz
