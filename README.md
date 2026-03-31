@@ -80,3 +80,40 @@ From real block data, Sherlock can:
 ./setup.sh
 ./cli.sh --block blk04330.dat rev04330.dat xor.dat
 ./web.sh
+```
+
+## Deploy to Vercel
+
+This repository is now configured for Vercel with:
+
+- Static React build output from `src/web/dist`
+- Serverless API function at `/api/*`
+- SPA fallback routing to `index.html`
+
+### 1. Prepare reports locally
+
+Generate at least one report so the deployed API has data to serve:
+
+```bash
+./cli.sh --block <blk.dat> <rev.dat> <xor.dat>
+```
+
+This writes JSON reports to `out/`, which are loaded by the API at runtime.
+
+### 2. Deploy
+
+```bash
+npm install
+npx vercel
+```
+
+For production:
+
+```bash
+npx vercel --prod
+```
+
+### Notes
+
+- The upload endpoint (`POST /api/upload`) is intentionally disabled on Vercel due to serverless request/runtime constraints for large blockchain file uploads.
+- Use local CLI analysis to generate `out/*.json`, then redeploy.

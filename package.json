@@ -11,6 +11,7 @@
         "cli": "node src/cli.js",
         "web": "node src/web/server.js",
         "build:web": "vite build --config src/web/vite.config.js",
+        "vercel-build": "npm run build:web",
         "dev:web": "vite --config src/web/vite.config.js",
         "test": "node --test --test-reporter=spec",
         "test:parser": "node --test src/parser/blockParser.test.js"

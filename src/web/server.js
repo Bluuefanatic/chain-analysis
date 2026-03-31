@@ -47,6 +47,9 @@ const store = {
     reportCount: 0,
 };
 
+let reportsLoaded = false;
+let reportsLoadPromise = null;
+
 function indexReport(report) {
     if (!Array.isArray(report?.blocks)) return 0;
 
@@ -80,6 +83,8 @@ function indexReport(report) {
  * @returns {Promise<void>}
  */
 async function loadReports() {
+    if (reportsLoaded) return;
+
     const outDir = path.join(process.cwd(), 'out');
 
     let entries;
@@ -113,6 +118,18 @@ async function loadReports() {
         `[server] data ready — ${store.blocksByHeight.size} blocks, ` +
         `${store.txIndex.size} transactions\n`
     );
+
+    reportsLoaded = true;
+}
+
+export async function ensureReportsLoaded() {
+    if (reportsLoaded) return;
+    if (!reportsLoadPromise) {
+        reportsLoadPromise = loadReports().finally(() => {
+            reportsLoadPromise = null;
+        });
+    }
+    await reportsLoadPromise;
 }
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
@@ -318,6 +335,13 @@ function handleTx(res, txid) {
 }
 
 async function handleUpload(req, res) {
+    if (process.env.VERCEL === '1') {
+        return json(res, 501, {
+            ok: false,
+            error: 'File upload analysis is disabled on Vercel. Run analysis locally and deploy generated out/*.json reports.',
+        });
+    }
+
     const contentType = req.headers['content-type'] ?? '';
     if (!contentType.toLowerCase().startsWith('multipart/form-data')) {
         return json(res, 400, { ok: false, error: 'expected multipart/form-data upload' });
@@ -487,12 +511,45 @@ function onRequest(req, res) {
     return serveStatic(req, res);
 }
 
+export function handleApiRequest(req, res) {
+    const url = req.url ?? '/';
+    const pathname = url.split('?')[0];
+
+    let match;
+
+    if (req.method === 'GET' && ROUTE_HEALTH.test(pathname)) {
+        return handleHealth(res);
+    }
+
+    if (req.method === 'GET' && ROUTE_BLOCKS.test(pathname)) {
+        return handleBlocks(res);
+    }
+
+    if (req.method === 'GET' && (match = ROUTE_BLOCK.exec(pathname))) {
+        return handleBlock(res, match[1]);
+    }
+
+    if (req.method === 'GET' && (match = ROUTE_TX.exec(pathname))) {
+        return handleTx(res, match[1]);
+    }
+
+    if (req.method === 'POST' && ROUTE_UPLOAD.test(pathname)) {
+        handleUpload(req, res).catch(err => {
+            process.stderr.write(`[server] upload handler error: ${err.message}\n`);
+            json(res, 500, { ok: false, error: 'failed to analyze uploaded files' });
+        });
+        return;
+    }
+
+    return json(res, 404, { ok: false, error: 'not found' });
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 const PORT = Number(process.env.PORT) || 3000;
 
 async function main() {
-    await loadReports();
+    await ensureReportsLoaded();
 
     const server = createServer(onRequest);
 
@@ -513,7 +570,9 @@ async function main() {
     }
 }
 
-main().catch(err => {
-    console.error('[server] fatal:', err);
-    process.exit(1);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+    main().catch(err => {
+        console.error('[server] fatal:', err);
+        process.exit(1);
+    });
+}
