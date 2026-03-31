@@ -1,119 +1,218 @@
-# Sherlock — Bitcoin Chain Analysis Engine
+# Sherlock
 
-Sherlock is a Bitcoin chain analysis engine that processes raw block data (`blk.dat`, `rev.dat`, `xor.dat`) and extracts meaningful patterns from transactions using heuristic-based analysis.
+Sherlock is a Bitcoin block analysis toolkit that parses raw block artifacts and surfaces behavioral heuristics through both machine-readable reports and an interactive web explorer.
 
-It combines:
-- Low-level Bitcoin parsing
-- Heuristic-based transaction analysis
-- Interactive web visualization
+It was originally built during the Summer of Bitcoin challenge and has been refined into a reusable, contributor-friendly project focused on transparent heuristic analysis.
 
-The goal is to move beyond raw blockchain data and uncover behavioral patterns such as wallet ownership, transaction intent, and privacy techniques like CoinJoin.
+## Why Sherlock
 
+- Works directly from raw Bitcoin data files: blk.dat, rev.dat, and xor.dat.
+- Produces reproducible outputs suitable for research notes, dashboards, and audits.
+- Keeps heuristic logic explicit and inspectable rather than hidden behind black-box scoring.
+- Supports both CLI-first workflows and browser-based exploration.
 
-## 🚀 Features
+## Core Features
 
-- **Full block parsing pipeline**
-  - Parses raw Bitcoin Core data files
-  - Reconstructs transactions and prevout data
-
-- **Heuristic engine (6+ heuristics)**
-  - Common Input Ownership (CIOH)
-  - Change detection
-  - CoinJoin detection
-  - Consolidation detection
-  - Address reuse
-  - Round-number payments
-
-- **Transaction classification**
+- Raw parsing pipeline for block and undo files.
+- Heuristic engine with pluggable detectors.
+- Transaction classification into:
   - simple_payment
   - consolidation
   - coinjoin
   - self_transfer
   - batch_payment
+  - unknown
+- JSON and Markdown report generation.
+- Web UI with:
+  - block selector
+  - statistics cards
+  - script type distribution
+  - heuristic chips
+  - classification filters
+  - transaction table with expandable details
+- Upload and analyze flow for blk.dat, rev.dat, xor.dat from the UI, using the same analysis pipeline as preloaded data.
 
-- **Fee analysis**
-  - Accurate fee and vsize calculation (BIP141)
-  - Distribution stats (min, max, median, mean)
+## Architecture
 
-- **Web visualizer**
-  - Interactive transaction exploration
-  - Heuristic filtering
-  - Block-level analytics dashboard
+```text
+blk.dat + rev.dat + xor.dat
+        |
+        v
+Parsers (block, transaction, rev)
+        |
+        v
+Heuristic engine (cioh, change_detection, coinjoin, consolidation, address_reuse, round_number_payment)
+        |
+        v
+Classifier + stats aggregation
+        |
+        v
+Report writers (JSON + Markdown)
+        |
+        v
+Web API + React visualizer
+```
 
-- **Markdown reporting**
-  - Auto-generated human-readable reports per block file
+For detailed heuristic design notes and trade-offs, see APPROACH.md.
 
+## Tech Stack
 
-## 🧠 What this project demonstrates
+- Node.js 20.x
+- ESM modules
+- React + Vite
+- Node built-in HTTP server for API and static hosting
 
-This project shows:
+## Repository Layout
 
-- Deep understanding of Bitcoin’s UTXO model  
-- Ability to parse and reconstruct blockchain data without external APIs  
-- Practical application of chain analysis heuristics  
-- Building end-to-end systems (CLI + backend + UI)  
+```text
+src/
+  parser/         # blk/rev/tx parsing
+  heuristics/     # heuristic implementations
+  analysis/       # classifier, fee stats, script types, heuristic runner
+  reports/        # json + markdown report generators
+  web/            # API server + React app
+out/              # generated and committed report outputs
+fixtures/         # sample block artifacts
+```
 
+## Quick Start
 
-## 📊 Example Insights
-
-From real block data, Sherlock can:
-
-- Link multiple inputs to a single entity (CIOH)
-- Identify which output is likely "change"
-- Detect CoinJoin transactions used for privacy
-- Spot wallet consolidation patterns
-- Analyze fee market behavior
-
-
-## ⚙️ Architecture
-
-1. Parse raw block + undo data
-2. Reconstruct transaction graph
-3. Apply heuristics per transaction
-4. Aggregate block-level statistics
-5. Output JSON + Markdown + Web UI
-
-
-## 🛠️ Usage
+### 1. Setup
 
 ```bash
 ./setup.sh
-./cli.sh --block blk04330.dat rev04330.dat xor.dat
+```
+
+This installs dependencies and decompresses fixture files.
+
+### 2. Run CLI analysis
+
+```bash
+./cli.sh --block fixtures/blk04330.dat fixtures/rev04330.dat fixtures/xor.dat
+```
+
+Expected outputs:
+
+- out/blk04330.json
+- out/blk04330.md
+
+### 3. Start the web app
+
+```bash
 ./web.sh
 ```
 
-## Deploy to Vercel
+The command prints a URL, typically:
 
-This repository is now configured for Vercel with:
-
-- Static React build output from `src/web/dist`
-- Serverless API function at `/api/*`
-- SPA fallback routing to `index.html`
-
-### 1. Prepare reports locally
-
-Generate at least one report so the deployed API has data to serve:
-
-```bash
-./cli.sh --block <blk.dat> <rev.dat> <xor.dat>
+```text
+http://127.0.0.1:3000
 ```
 
-This writes JSON reports to `out/`, which are loaded by the API at runtime.
+Open it in your browser and explore results.
 
-### 2. Deploy
+## Upload and Analyze from UI
+
+The web app supports direct upload of:
+
+- blk.dat
+- rev.dat
+- xor.dat
+
+Use the Upload and Analyze section in the UI.
+
+Implementation notes:
+
+- Files are sent to POST /api/upload.
+- Backend invokes the existing CLI analysis pipeline.
+- The resulting block data is indexed into the same in-memory store used by preloaded reports.
+- UI reuses existing rendering/state paths, so all current views update without a separate code path.
+
+## API Overview
+
+- GET /api/health
+  - Returns service health and data counts.
+- GET /api/blocks
+  - Returns list of loaded blocks with summary metadata.
+- GET /api/block/:height
+  - Returns one analyzed block by height.
+- GET /api/tx/:txid
+  - Returns one transaction and block context.
+- POST /api/upload
+  - Accepts multipart form with blkFile, revFile, xorFile.
+  - Runs analysis and returns analyzed block payload.
+
+## NPM Scripts
+
+- npm run setup
+- npm run cli
+- npm run web
+- npm run build:web
+- npm run dev:web
+- npm run test
+- npm run test:parser
+
+## Development Workflow
+
+### Run tests
 
 ```bash
-npm install
-npx vercel
+npm run test
 ```
 
-For production:
+### Frontend development mode
 
 ```bash
-npx vercel --prod
+npm run dev:web
 ```
 
-### Notes
+Vite serves the UI and proxies /api requests to the backend on PORT (default 3000).
 
-- The upload endpoint (`POST /api/upload`) is intentionally disabled on Vercel due to serverless request/runtime constraints for large blockchain file uploads.
-- Use local CLI analysis to generate `out/*.json`, then redeploy.
+### Build frontend
+
+```bash
+npm run build:web
+```
+
+## Output Contracts
+
+JSON reports are emitted in a consistent schema used by both CLI consumers and the web app. See source and tests under:
+
+- src/reports/jsonReport.js
+- src/reports/jsonReport.test.js
+
+Markdown reports are generated for human review under:
+
+- src/reports/markdownReport.js
+- src/reports/markdownReport.test.js
+
+## Demo
+
+Demo walkthrough link is available in demo.md.
+
+## Contributing
+
+Contributions are welcome, especially around:
+
+- additional heuristics
+- false-positive analysis and confidence calibration
+- richer visual analytics
+- performance improvements for large block files
+- test coverage for edge-case transactions
+
+Suggested PR checklist:
+
+- add or update tests with each behavior change
+- keep CLI and web paths consistent with the same analysis pipeline
+- avoid schema-breaking output changes unless intentionally versioned
+- document notable trade-offs in APPROACH.md
+
+## Roadmap Ideas
+
+- streaming analysis progress in UI for large uploads
+- optional persistence layer for analyzed datasets
+- heuristic explainability panels with comparative signals
+- benchmark suite for parser and report generation speed
+
+## Acknowledgments
+
+Built as part of Summer of Bitcoin and expanded as a practical open-source chain analysis project.
