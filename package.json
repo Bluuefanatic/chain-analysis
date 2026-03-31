@@ -4,7 +4,7 @@
     "description": "Bitcoin chain-analysis engine for the Summer of Bitcoin 2026 Week 3 challenge.",
     "type": "module",
     "engines": {
-        "node": ">=18"
+        "node": "20.x"
     },
     "scripts": {
         "setup": "bash setup.sh",
